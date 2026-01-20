@@ -1,5 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
+import { onAuthStateChanged } from 'firebase/auth'; 
+import { auth } from './services/firebase.ts';     
 import { Auth } from './components/Auth.tsx';
 import { Dashboard } from './components/Dashboard.tsx';
 import { Quiz } from './components/Quiz.tsx';
@@ -15,28 +16,51 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [currentResult, setCurrentResult] = useState<TestResult | null>(null);
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Load existing session
+  // --- THE CLEAN PLUMBING: SESSION RESTORATION ---
   useEffect(() => {
-    const activeUser = authService.getCurrentUser();
-    if (activeUser) {
-      setUser(activeUser);
-      setAppState('DASHBOARD');
-    }
+    // This watches for the "Remember Me" session from Firebase
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        try {
+          // Use the new getUserProfile function to get the worker's data
+          const userData = await authService.getUserProfile(firebaseUser.uid);
+          if (userData) {
+            setUser(userData);
+            setAppState('DASHBOARD');
+          } else {
+            // If the auth exists but no database record, go back to login
+            setAppState('AUTH');
+          }
+        } catch (error) {
+          console.error("Session restoration error:", error);
+          setAppState('AUTH');
+        }
+      } else {
+        setAppState('AUTH');
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  const refreshUser = () => {
-    const activeUser = authService.getCurrentUser();
-    if (activeUser) setUser(activeUser);
+  const refreshUser = async () => {
+    if (user) {
+      const updatedData = await authService.getUserProfile(user.id);
+      if (updatedData) setUser(updatedData);
+    }
   };
+  // ----------------------------------------------
 
   const handleAuthSuccess = (authenticatedUser: User) => {
     setUser(authenticatedUser);
     setAppState('DASHBOARD');
   };
 
-  const handleLogout = () => {
-    authService.logout();
+  const handleLogout = async () => {
+    await authService.logout();
     setUser(null);
     setAppState('AUTH');
   };
@@ -46,14 +70,27 @@ const App: React.FC = () => {
     setAppState('RESULT');
     
     if (user) {
-      authService.updateUserTestHistory(user.id, result);
-      refreshUser();
+      // Ensure this matches the function name in authService.ts
+      await authService.addTestResult(user.id, result); 
+      await refreshUser();
 
       setSendingEmail(true);
-      await emailService.sendTestResult(authService.getCurrentUser()!, result);
+      try {
+        await emailService.sendTestResult(user, result);
+      } catch (error) {
+        console.error("Email delivery failed:", error);
+      }
       setSendingEmail(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="w-12 h-12 border-4 border-[#2E5D4E] border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   const renderContent = () => {
     switch (appState) {
@@ -62,10 +99,7 @@ const App: React.FC = () => {
       case 'DASHBOARD':
         return user ? <Dashboard user={user} onStartQuiz={() => setAppState('QUIZ')} /> : null;
       case 'QUIZ':
-        return <Quiz 
-          onComplete={handleQuizComplete} 
-          onCancel={() => setAppState('DASHBOARD')} 
-        />;
+        return <Quiz onComplete={handleQuizComplete} onCancel={() => setAppState('DASHBOARD')} />;
       case 'PROFILE':
         return user ? <Profile user={user} onUpdate={refreshUser} /> : null;
       case 'ADMIN':
@@ -81,44 +115,33 @@ const App: React.FC = () => {
                 }
               </svg>
             </div>
-            
             <h2 className={`text-4xl font-bold ${currentResult?.passed ? 'text-green-700' : 'text-red-700'}`}>
               {currentResult?.passed ? 'Certification Passed!' : 'Retry Recommended'}
             </h2>
-            
             <div className="py-4">
               <span className="text-gray-500 text-sm uppercase font-bold tracking-widest block mb-1">Final Score</span>
               <span className="text-6xl font-black text-gray-800">{currentResult?.score}%</span>
             </div>
-
             <div className="bg-gray-50 p-6 rounded-xl space-y-3">
               <p className="text-gray-600 leading-relaxed">
                 {currentResult?.passed 
-                  ? "Well done! You have demonstrated a strong understanding of our Child Protection Policy. Your results have been recorded and sent to the church administration."
-                  : "You didn't reach the required 80% passing grade. We encourage you to review the Child Protection Policy document again and retake the test when ready."
+                  ? "Well done! Your results have been recorded."
+                  : "You didn't reach the required 80%. Please try again."
                 }
               </p>
-              
               <div className="flex items-center justify-center gap-2 text-sm font-semibold text-gray-400">
                 {sendingEmail ? (
                   <>
                     <div className="w-4 h-4 border-2 border-[#2E5D4E] border-t-transparent rounded-full animate-spin"></div>
-                    <span>Processing Results & Emailing...</span>
+                    <span>Processing Results...</span>
                   </>
                 ) : (
-                  <>
-                    <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"></path><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"></path></svg>
-                    <span>Results logged and sent to church office.</span>
-                  </>
+                  <span>Results logged successfully.</span>
                 )}
               </div>
             </div>
-
             <div className="pt-6">
-              <button 
-                onClick={() => setAppState('DASHBOARD')}
-                className="px-8 py-3 bg-[#2E5D4E] text-white rounded-xl font-bold hover:bg-[#254a3e] transition-all"
-              >
+              <button onClick={() => setAppState('DASHBOARD')} className="px-8 py-3 bg-[#2E5D4E] text-white rounded-xl font-bold hover:scale-105 transition-transform">
                 Back to Dashboard
               </button>
             </div>
@@ -130,12 +153,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <Layout 
-      user={user || undefined} 
-      onLogout={handleLogout} 
-      onNavigate={setAppState} 
-      currentState={appState}
-    >
+    <Layout user={user || undefined} onLogout={handleLogout} onNavigate={setAppState} currentState={appState}>
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
         {renderContent()}
       </div>
