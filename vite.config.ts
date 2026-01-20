@@ -5,9 +5,11 @@ export default defineConfig({
   plugins: [react()],
   base: '/CPP-Test-/',
   build: {
-    emptyOutDir: true, // This clears the old files before cooking new ones
+    outDir: 'dist',
     rollupOptions: {
-      input: 'index.html'
-    }
-  }
+      input: {
+        main: './index.html',
+      },
+    },
+  },
 });
