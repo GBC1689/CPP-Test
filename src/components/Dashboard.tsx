@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { User } from '../types';
 
@@ -8,11 +7,14 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ user, onStartQuiz }) => {
-  const latestResult = user.testAttempts.length > 0 
-    ? user.testAttempts[user.testAttempts.length - 1] 
+  // Safety check: Ensure testAttempts is treated as an array even if it's missing
+  const attempts = user.testAttempts || [];
+  
+  const latestResult = attempts.length > 0 
+    ? attempts[attempts.length - 1] 
     : null;
 
-  const passedOnce = user.testAttempts.some(t => t.passed);
+  const passedOnce = attempts.some(t => t.passed);
 
   return (
     <div className="space-y-8">
@@ -25,7 +27,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onStartQuiz }) => {
             onClick={onStartQuiz}
             className="px-10 py-4 bg-[#2E5D4E] text-white rounded-2xl font-bold text-xl hover:bg-[#254a3e] transition-all transform hover:scale-105 shadow-xl shadow-green-100"
           >
-            {user.testAttempts.length === 0 ? 'Start Certification Test' : 'Retake Certification Test'}
+            {attempts.length === 0 ? 'Start Certification Test' : 'Retake Certification Test'}
           </button>
         </div>
         
@@ -34,7 +36,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onStartQuiz }) => {
               <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
            </div>
            <div className="text-center">
-             <span className="block text-2xl font-bold text-gray-800">{user.testAttempts.length}</span>
+             <span className="block text-2xl font-bold text-gray-800">{attempts.length}</span>
              <span className="text-xs uppercase font-bold text-gray-400 tracking-widest">Total Attempts</span>
            </div>
         </div>
@@ -43,7 +45,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onStartQuiz }) => {
       <div className="bg-white p-8 rounded-2xl shadow-lg border border-gray-100">
         <h3 className="text-2xl font-bold text-gray-800 mb-6 border-b border-gray-100 pb-4">Test History</h3>
         
-        {user.testAttempts.length === 0 ? (
+        {attempts.length === 0 ? (
           <div className="py-12 text-center text-gray-400 italic">
             No test attempts recorded yet.
           </div>
@@ -59,7 +61,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onStartQuiz }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {user.testAttempts.slice().reverse().map((attempt, idx) => (
+                {[...attempts].reverse().map((attempt, idx) => (
                   <tr key={idx} className="group">
                     <td className="py-4 text-gray-600">{new Date(attempt.date).toLocaleDateString()}</td>
                     <td className="py-4 font-bold text-gray-800">{attempt.score}%</td>

@@ -18,19 +18,16 @@ const App: React.FC = () => {
   const [sendingEmail, setSendingEmail] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // --- THE CLEAN PLUMBING: SESSION RESTORATION ---
+  // --- SESSION RESTORATION ---
   useEffect(() => {
-    // This watches for the "Remember Me" session from Firebase
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          // Use the new getUserProfile function to get the worker's data
           const userData = await authService.getUserProfile(firebaseUser.uid);
           if (userData) {
             setUser(userData);
             setAppState('DASHBOARD');
           } else {
-            // If the auth exists but no database record, go back to login
             setAppState('AUTH');
           }
         } catch (error) {
@@ -47,12 +44,16 @@ const App: React.FC = () => {
   }, []);
 
   const refreshUser = async () => {
-    if (user) {
+    if (!user) return;
+    try {
       const updatedData = await authService.getUserProfile(user.id);
-      if (updatedData) setUser(updatedData);
+      if (updatedData) {
+        setUser(updatedData);
+      }
+    } catch (error) {
+      console.error("Failed to refresh user data:", error);
     }
   };
-  // ----------------------------------------------
 
   const handleAuthSuccess = (authenticatedUser: User) => {
     setUser(authenticatedUser);
@@ -60,9 +61,13 @@ const App: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    await authService.logout();
-    setUser(null);
-    setAppState('AUTH');
+    try {
+      await authService.logout();
+      setUser(null);
+      setAppState('AUTH');
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
   };
 
   const handleQuizComplete = async (result: TestResult) => {
@@ -70,17 +75,17 @@ const App: React.FC = () => {
     setAppState('RESULT');
     
     if (user) {
-      // Ensure this matches the function name in authService.ts
-      await authService.addTestResult(user.id, result); 
-      await refreshUser();
-
-      setSendingEmail(true);
       try {
+        await authService.addTestResult(user.id, result); 
+        await refreshUser();
+
+        setSendingEmail(true);
         await emailService.sendTestResult(user, result);
       } catch (error) {
-        console.error("Email delivery failed:", error);
+        console.error("Post-quiz processing failed:", error);
+      } finally {
+        setSendingEmail(false);
       }
-      setSendingEmail(false);
     }
   };
 
@@ -106,7 +111,7 @@ const App: React.FC = () => {
         return user?.isAdmin ? <AdminDashboard /> : <div className="p-12 text-center text-red-500 font-bold">Unauthorized Access</div>;
       case 'RESULT':
         return (
-          <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100 text-center space-y-6">
+          <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100 text-center space-y-6 max-w-2xl mx-auto">
             <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4 ${currentResult?.passed ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
               <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 {currentResult?.passed 
