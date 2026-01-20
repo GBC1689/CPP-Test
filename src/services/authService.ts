@@ -1,4 +1,4 @@
-import { auth, db } from './firebase.ts'; // Added .ts extension for build safety
+import { auth, db } from './firebase.ts'; 
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
@@ -8,12 +8,17 @@ import { doc, setDoc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { User, TestResult } from '../types.ts';
 
 export const authService = {
-  // 1. Fetch user data from Firestore by UID (Essential for App.tsx session recovery)
+  // 1. Fetch user data from Firestore by UID (Defensive version)
   async getUserProfile(uid: string): Promise<User | null> {
     try {
       const userDoc = await getDoc(doc(db, 'users', uid));
       if (userDoc.exists()) {
-        return userDoc.data() as User;
+        const data = userDoc.data();
+        // Ensure testAttempts exists so the app doesn't crash reading .length
+        return {
+          ...data,
+          testAttempts: data.testAttempts || []
+        } as User;
       }
       return null;
     } catch (error) {
@@ -39,7 +44,7 @@ export const authService = {
     return newUser;
   },
 
-  // 3. Login with password
+  // 3. Login with password (Defensive version)
   async login(email: string, password: string): Promise<User> {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
@@ -48,10 +53,15 @@ export const authService = {
       throw new Error("User record not found in database.");
     }
     
-    return userDoc.data() as User;
+    const data = userDoc.data();
+    // Safely inject an empty array if the user is new/empty
+    return {
+      ...data,
+      testAttempts: data.testAttempts || []
+    } as User;
   },
 
-  // 4. Update Test Results (Optimized using arrayUnion)
+  // 4. Update Test Results
   async addTestResult(userId: string, result: TestResult) {
     const userRef = doc(db, 'users', userId);
     
