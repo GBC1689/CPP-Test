@@ -24,7 +24,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onNavi
             </div>
             <div>
               <h1 className="text-xl font-bold text-[#2E5D4E] leading-tight">Germiston Baptist Church</h1>
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">GBC Child Protection Training</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Germiston Baptist Church - Child Protection</p>
             </div>
           </div>
           

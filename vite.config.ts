@@ -4,7 +4,7 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
-  base: '/CPP-Test-/',
+  base: '/CPP-Test/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
