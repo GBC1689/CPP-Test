@@ -1,3 +1,4 @@
+import { generateCertificate } from '../utils/certificateGenerator';
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Question, QuestionAttempt, TestResult } from '../types';
