@@ -8,16 +8,15 @@ import { doc, setDoc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { User, TestResult } from '../types.ts';
 
 export const authService = {
-  // 1. Fetch user data from Firestore by UID (Defensive version)
+  // 1. Fetch user data from Firestore by UID
   async getUserProfile(uid: string): Promise<User | null> {
     try {
       const userDoc = await getDoc(doc(db, 'users', uid));
       if (userDoc.exists()) {
         const data = userDoc.data();
-        // Ensure testAttempts exists so the app doesn't crash reading .length
         return {
           ...data,
-          testAttempts: data.testAttempts || []
+          results: data.results || []
         } as User;
       }
       return null;
@@ -28,55 +27,67 @@ export const authService = {
   },
 
   // 2. Register a new user
-  async register(email: string, name: string, password: string): Promise<User> {
+  async register(email: string, password: string): Promise<User> {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const newUser: User = {
       id: userCredential.user.uid,
       email,
-      name,
-      gradeTaught: '',
-      intendToTeach: true,
-      testAttempts: [],
-      isAdmin: false
+      firstName: '', // Initialize empty for the Gatekeeper to catch
+      lastName: '',  // Initialize empty for the Gatekeeper to catch
+      isAdmin: false,
+      completedTests: 0,
+      bestScore: 0,
+      results: []
     };
     
     await setDoc(doc(db, 'users', newUser.id), newUser);
     return newUser;
   },
 
-  // 3. Login with password (Defensive version)
+  // 3. Login with password
   async login(email: string, password: string): Promise<User> {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
+    const userProfile = await this.getUserProfile(userCredential.user.uid);
     
-    if (!userDoc.exists()) {
+    if (!userProfile) {
       throw new Error("User record not found in database.");
     }
     
-    const data = userDoc.data();
-    // Safely inject an empty array if the user is new/empty
-    return {
-      ...data,
-      testAttempts: data.testAttempts || []
-    } as User;
+    return userProfile;
   },
 
-  // 4. Update Test Results
+  // 4. THE MISSING PIECE: Update User Profile (Names, etc.)
+  async updateUserProfile(uid: string, data: Partial<User>) {
+    try {
+      const userRef = doc(db, 'users', uid);
+      await updateDoc(userRef, data);
+      return true;
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      throw error;
+    }
+  },
+
+  // 5. Update Test Results
   async addTestResult(userId: string, result: TestResult) {
     const userRef = doc(db, 'users', userId);
     
+    // Calculate new best score and increment total tests
+    const userDoc = await getDoc(userRef);
+    const userData = userDoc.data();
+    const currentBest = userData?.bestScore || 0;
+    
     const updateData: any = {
-      testAttempts: arrayUnion(result)
+      results: arrayUnion(result),
+      completedTests: (userData?.completedTests || 0) + 1,
+      lastTestDate: result.date,
+      bestScore: Math.max(currentBest, result.score)
     };
-
-    if (result.passed) {
-      updateData.lastSuccessfulTestDate = result.date;
-    }
 
     await updateDoc(userRef, updateData);
   },
 
-  // 5. Logout
+  // 6. Logout
   async logout() {
     return signOut(auth);
   }

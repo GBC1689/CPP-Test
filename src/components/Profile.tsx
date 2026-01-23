@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
-import { User } from '../types';
-import { authService } from '../services/authService';
+import { User } from '../types.ts';
+import { authService } from '../services/authService.ts';
 
 interface ProfileProps {
   user: User;
@@ -11,22 +10,36 @@ interface ProfileProps {
 const GRADES = ["Nursery", "Pre-School", "Grade R", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Youth", "Administration"];
 
 export const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
-  const [name, setName] = useState(user.name);
-  const [grade, setGrade] = useState(user.gradeTaught);
-  const [intendToTeach, setIntendToTeach] = useState(user.intendToTeach);
-  const [password, setPassword] = useState(user.password || '');
+  // Logic Fix: We now use firstName and lastName to match the User type
+  const [firstName, setFirstName] = useState(user.firstName || '');
+  const [lastName, setLastName] = useState(user.lastName || '');
+  const [grade, setGrade] = useState(user.gradeTaught || '');
+  const [intendToTeach, setIntendToTeach] = useState(user.intendToTeach ?? true);
+  const [password, setPassword] = useState(''); 
   const [saved, setSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = () => {
-    authService.updateUser(user.id, {
-      name,
-      gradeTaught: grade,
-      intendToTeach,
-      password
-    });
-    setSaved(true);
-    onUpdate();
-    setTimeout(() => setSaved(false), 3000);
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      // Logic Fix: Calling the correct function name from authService.ts
+      await authService.updateUserProfile(user.id, {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        gradeTaught: grade,
+        intendToTeach,
+        ...(password ? { password } : {})
+      });
+      
+      setSaved(true);
+      await onUpdate(); // This triggers the refresh in App.tsx
+      setTimeout(() => setSaved(false), 3000);
+    } catch (error) {
+      console.error("Save error:", error);
+      alert("Error saving profile. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -34,38 +47,56 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
       <h2 className="text-3xl font-bold text-gray-800 mb-6">My Profile</h2>
       
       <div className="space-y-6">
-        <div>
-          <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Full Name</label>
-          <input 
-            type="text" 
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#2E5D4E] outline-none"
-          />
+        {/* Row 1: First and Last Name */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 text-left">First Name</label>
+            <input 
+              type="text" 
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#2E5D4E] outline-none"
+              placeholder="First Name"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 text-left">Last Name</label>
+            <input 
+              type="text" 
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#2E5D4E] outline-none"
+              placeholder="Last Name"
+            />
+          </div>
         </div>
 
+        {/* Row 2: Grade Taught */}
         <div>
-          <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Grade You Teach</label>
+          <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 text-left">Grade You Teach</label>
           <select 
             value={grade}
             onChange={(e) => setGrade(e.target.value)}
             className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#2E5D4E] outline-none bg-white"
           >
+            <option value="">Select Grade</option>
             {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
           </select>
         </div>
 
+        {/* Row 3: Password Update */}
         <div>
-          <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Access Password</label>
+          <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 text-left">Access Password (Optional)</label>
           <input 
             type="password" 
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#2E5D4E] outline-none"
-            placeholder="Change your password"
+            placeholder="Enter new password to change"
           />
         </div>
 
+        {/* Row 4: Intent Checkbox */}
         <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-xl">
            <input 
             type="checkbox" 
@@ -79,17 +110,19 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
            </label>
         </div>
 
+        {/* Row 5: Action Button */}
         <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
           <button 
             onClick={handleSave}
-            className="px-8 py-3 bg-[#2E5D4E] text-white rounded-xl font-bold hover:bg-[#254a3e] transition-all"
+            disabled={isSaving}
+            className={`px-8 py-3 bg-[#2E5D4E] text-white rounded-xl font-bold transition-all ${isSaving ? 'opacity-50' : 'hover:bg-[#254a3e]'}`}
           >
-            Save Changes
+            {isSaving ? 'Saving...' : 'Save Changes'}
           </button>
           
           {saved && (
             <span className="text-green-600 font-bold animate-pulse">
-              Profile updated successfully!
+               Profile updated successfully!
             </span>
           )}
         </div>
