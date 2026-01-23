@@ -102,7 +102,13 @@ const App: React.FC = () => {
       case 'AUTH':
         return <Auth onAuthSuccess={handleAuthSuccess} />;
       case 'DASHBOARD':
-        return user ? <Dashboard user={user} onStartQuiz={() => setAppState('QUIZ')} /> : null;
+        if (!user) return null;
+        // --- GATEKEEPER LOGIC ---
+        // If profile names are missing, redirect to Profile
+        if (!user.firstName || !user.lastName) {
+          return <Profile user={user} onUpdate={refreshUser} />;
+        }
+        return <Dashboard user={user} onStartQuiz={() => setAppState('QUIZ')} />;
       case 'QUIZ':
         return <Quiz onComplete={handleQuizComplete} onCancel={() => setAppState('DASHBOARD')} />;
       case 'PROFILE':

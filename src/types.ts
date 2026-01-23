@@ -1,36 +1,30 @@
+export type AppState = 'AUTH' | 'DASHBOARD' | 'QUIZ' | 'RESULT' | 'PROFILE' | 'ADMIN';
+
+export interface User {
+  id: string;
+  email: string;
+  firstName?: string;  // Added for Governance
+  lastName?: string;   // Added for Governance
+  isAdmin: boolean;
+  completedTests: number;
+  lastTestDate?: string;
+  bestScore: number;
+  results?: TestResult[];
+}
+
+export interface TestResult {
+  id: string;
+  date: string;
+  score: number;
+  passed: boolean;
+  totalQuestions: number;
+  correctAnswers: number;
+}
 
 export interface Question {
   id: number;
   text: string;
   options: string[];
-  correctIndex: number;
-  falseIndex: number; 
+  correctAnswer: number;
   explanation: string;
 }
-
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  password?: string;
-  gradeTaught: string;
-  intendToTeach: boolean;
-  lastSuccessfulTestDate?: string;
-  testAttempts: TestResult[];
-  isAdmin: boolean;
-}
-
-export interface TestResult {
-  date: string;
-  score: number;
-  passed: boolean;
-  questionDetails: QuestionAttempt[];
-}
-
-export interface QuestionAttempt {
-  questionId: number;
-  attempts: number;
-  isCorrect: boolean;
-}
-
-export type AppState = 'AUTH' | 'DASHBOARD' | 'QUIZ' | 'RESULT' | 'PROFILE' | 'ADMIN';
