@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { onAuthStateChanged } from 'firebase/auth'; 
-import { auth } from './services/firebase.ts';     
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from './services/firebase.ts';
 import { Auth } from './components/Auth.tsx';
 import { Dashboard } from './components/Dashboard.tsx';
 import { Quiz } from './components/Quiz.tsx';
@@ -9,7 +9,6 @@ import { AdminDashboard } from './components/AdminDashboard.tsx';
 import { Layout } from './components/Layout.tsx';
 import { authService } from './services/authService.ts';
 import { emailService } from './services/emailService.ts';
-import { generateCertificate } from './utils/certificateGenerator.ts';
 import { User, AppState, TestResult } from './types.ts';
 
 const App: React.FC = () => {
@@ -74,15 +73,11 @@ const App: React.FC = () => {
   const handleQuizComplete = async (result: TestResult) => {
     setCurrentResult(result);
     setAppState('RESULT');
-    
+
     if (user) {
       try {
-        await authService.addTestResult(user.id, result); 
+        await authService.addTestResult(user.id, result);
         await refreshUser();
-
-        if (result.passed) {
-          generateCertificate(`${user.firstName} ${user.lastName}`, result.score);
-        }
 
         setSendingEmail(true);
         await emailService.sendTestResult(user, result);
@@ -107,7 +102,7 @@ const App: React.FC = () => {
       case 'AUTH':
         return <Auth onAuthSuccess={handleAuthSuccess} />;
       case 'DASHBOARD':
-        return user ? <Dashboard user={user} onStartQuiz={() => setAppState('QUIZ')} onNavigate={setAppState} /> : null;
+        return user ? <Dashboard user={user} onStartQuiz={() => setAppState('QUIZ')} /> : null;
       case 'QUIZ':
         return <Quiz onComplete={handleQuizComplete} onCancel={() => setAppState('DASHBOARD')} />;
       case 'PROFILE':
@@ -119,7 +114,7 @@ const App: React.FC = () => {
           <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100 text-center space-y-6 max-w-2xl mx-auto">
             <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4 ${currentResult?.passed ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
               <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                {currentResult?.passed 
+                {currentResult?.passed
                   ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path>
                   : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12"></path>
                 }
@@ -134,7 +129,7 @@ const App: React.FC = () => {
             </div>
             <div className="bg-gray-50 p-6 rounded-xl space-y-3">
               <p className="text-gray-600 leading-relaxed">
-                {currentResult?.passed 
+                {currentResult?.passed
                   ? "Well done! Your results have been recorded."
                   : "You didn't reach the required 80%. Please try again."
                 }

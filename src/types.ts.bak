@@ -4,15 +4,14 @@ export interface Question {
   text: string;
   options: string[];
   correctIndex: number;
-  falseIndex: number; 
+  falseIndex: number;
   explanation: string;
 }
 
 export interface User {
   id: string;
   email: string;
-  firstName: string;
-  lastName: string;
+  name: string;
   password?: string;
   gradeTaught: string;
   intendToTeach: boolean;
