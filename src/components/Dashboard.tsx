@@ -1,5 +1,7 @@
 import React from 'react';
-import { User } from '../types';
+import { User, TestResult } from '../types';
+import { generateCertificate } from '../utils/certificateGenerator';
+import { emailService } from '../services/emailService';
 
 interface DashboardProps {
   user: User;
@@ -7,6 +9,40 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ user, onStartQuiz }) => {
+  const handleCertificateRequest = async (attempt: TestResult) => {
+    if (!attempt.passed) {
+      alert('Certificates are only available for passed tests.');
+      return;
+    }
+
+    try {
+      const fullName = `${user.firstName} ${user.lastName}`;
+      // Generate the PDF as a data URI
+      const pdfDataUri = generateCertificate(fullName, attempt.score);
+
+      // "Dry Run" explanation:
+      // The `pdfDataUri` is a base64 encoded string of the PDF content.
+      // We will now pass this to our email service.
+      console.log('--- DRY RUN: Certificate Generation ---');
+      console.log('Generated PDF data URI (truncated):', pdfDataUri.substring(0, 100) + '...');
+
+      // The email service will take this data URI and create a Firestore document
+      // in the "mail" collection. The "Trigger Email" extension is listening
+      // to this collection. When it sees the new document, it will send an
+      // email with the PDF attached.
+      console.log('--- DRY RUN: Email Service ---');
+      console.log(`Sending certificate to ${user.email}...`);
+
+      await emailService.sendCertificateEmail(user, pdfDataUri);
+
+      console.log('--- DRY RUN: Complete ---');
+      alert('Your certificate has been sent to your email address.');
+
+    } catch (error) {
+      console.error('Failed to generate or send certificate:', error);
+      alert('There was an error generating your certificate. Please try again later.');
+    }
+  };
   // Safety check: Ensure testAttempts is treated as an array even if it's missing
   const attempts = user.testAttempts || [];
   
@@ -71,7 +107,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onStartQuiz }) => {
                       </span>
                     </td>
                     <td className="py-4 text-right">
-                      <span className="text-xs text-gray-400 group-hover:text-[#2E5D4E] transition-colors cursor-default">View Report</span>
+                      <button
+                        onClick={() => handleCertificateRequest(attempt)}
+                        className="text-xs text-gray-400 group-hover:text-[#2E5D4E] transition-colors cursor-pointer"
+                      >
+                        Certificate
+                      </button>
                     </td>
                   </tr>
                 ))}

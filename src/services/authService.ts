@@ -168,5 +168,17 @@ export const authService = {
       console.error("Logout error:", error);
       throw error;
     }
+  },
+
+  // 10. Admin: Update User Admin Status
+  async updateUserAdminStatus(uid: string, isAdmin: boolean): Promise<boolean> {
+    try {
+      const userRef = doc(db, 'users', uid);
+      await updateDoc(userRef, { isAdmin });
+      return true;
+    } catch (error) {
+      console.error("Error updating admin status:", error);
+      throw error;
+    }
   }
 };
