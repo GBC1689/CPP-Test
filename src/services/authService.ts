@@ -39,7 +39,7 @@ export const authService = {
   },
 
   // 2. Updated Register: Accepts firstName and lastName
-  async register(firstName: string, lastName: string, email: string, password: string, grade: string): Promise<User> {
+  async register(firstName: string, lastName: string, email: string, password: string, grades: string[]): Promise<User> {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
 
@@ -48,7 +48,7 @@ export const authService = {
         email,
         firstName: firstName,
         lastName: lastName,
-        gradeTaught: grade,
+        gradeTaught: grades,
         isAdmin: false,
         completedTests: 0,
         bestScore: 0,

@@ -3,15 +3,13 @@ export type AppState = 'AUTH' | 'DASHBOARD' | 'QUIZ' | 'RESULT' | 'PROFILE' | 'A
 export interface User {
   id: string;
   email: string;
-  firstName?: string;
-  lastName?: string;
-  gradeTaught?: string[];
+  firstName?: string;  // Added for Governance
+  lastName?: string;   // Added for Governance
   isAdmin: boolean;
   completedTests: number;
   lastTestDate?: string;
   bestScore: number;
   results?: TestResult[];
-  intendToTeach?: boolean;
 }
 
 export interface TestResult {
