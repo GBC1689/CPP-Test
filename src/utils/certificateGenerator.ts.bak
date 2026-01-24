@@ -107,5 +107,5 @@ export const generateCertificate = (userName: string, score: number) => {
   doc.text('This certification is valid for two years and must be renewed to remain in active ministry with children.', A4_WIDTH / 2, A4_HEIGHT - MARGIN - 5, { align: 'center' });
 
   // --- RETURN DOCUMENT ---
-  doc.save('certificate.pdf');
+  return doc.output('datauristring');
 };

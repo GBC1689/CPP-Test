@@ -2,7 +2,6 @@
 import React from 'react';
 import { User } from '../types';
 import { generateTeachersPdf } from '../utils/teachersGenerator';
-import { emailService } from '../services/emailService';
 
 interface TeachersReportProps {
   users: User[];
@@ -12,22 +11,9 @@ interface TeachersReportProps {
 export const TeachersReport: React.FC<TeachersReportProps> = ({ users, onClose }) => {
   const handlePrint = async () => {
     try {
-      const pdfDataUri = await generateTeachersPdf(users);
-      // This is a "Dry Run" implementation
-      console.log('--- DRY RUN: Teachers Report PDF Generation ---');
-      console.log('Generated PDF data URI (truncated):', pdfDataUri.substring(0, 100) + '...');
-      console.log('--- DRY RUN: Email Service ---');
-      console.log('Sending teachers report to admin...');
-      // In a real scenario, we would get the current admin user's email.
-      // For this dry run, we'll simulate it.
-      const adminUser = users.find(u => u.isAdmin);
-      if (adminUser) {
-        await emailService.sendCertificateEmail(adminUser, pdfDataUri);
-      }
-      console.log('--- DRY RUN: Complete ---');
-      alert('The teachers report has been sent to your email address.');
+      await generateTeachersPdf(users);
     } catch (error) {
-      console.error('Failed to generate or send teachers report:', error);
+      console.error('Failed to generate teachers report:', error);
       alert('There was an error generating the report. Please try again later.');
     }
   };
