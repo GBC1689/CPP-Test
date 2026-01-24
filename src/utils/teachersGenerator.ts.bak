@@ -69,5 +69,5 @@ export const generateTeachersPdf = async (users: User[]): Promise<string> => {
     yPos += 5;
   });
 
-  doc.save('teachers-report.pdf');
+  return doc.output('datauristring');
 };

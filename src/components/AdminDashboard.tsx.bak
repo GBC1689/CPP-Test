@@ -39,23 +39,19 @@ export const AdminDashboard: React.FC = () => {
   // --- COMPUTED STATS ---
   const stats = useMemo(() => {
     const now = new Date();
-    now.setHours(0, 0, 0, 0); // Set to start of day for consistent comparison
+    const oneYearInMs = 1 * 365 * 24 * 60 * 60 * 1000;
 
-    return users.map(u => {
+    // Filter out admins from the stats view
+    const nonAdminUsers = users.filter(u => !u.isAdmin);
+
+    return nonAdminUsers.map(u => {
+      // Find the most recent PASSED test
       const latestPass = u.results
         ?.filter(r => r.passed)
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
       const lastSuccessDate = latestPass ? new Date(latestPass.date) : null;
-      let isExpired = true;
-
-      if (lastSuccessDate) {
-        const expiryDate = new Date(lastSuccessDate);
-        expiryDate.setFullYear(expiryDate.getFullYear() + 1);
-        expiryDate.setHours(0, 0, 0, 0);
-
-        isExpired = now >= expiryDate;
-      }
+      const isExpired = !lastSuccessDate || (now.getTime() - lastSuccessDate.getTime() > oneYearInMs);
 
       return { ...u, isExpired, lastSuccessDate };
     });
@@ -81,7 +77,7 @@ export const AdminDashboard: React.FC = () => {
 
     // This would be a real bulk email operation
     await emailService.sendBulkReminderEmail(outstandingUsers);
-    
+
     setStatusMessage({ text: 'Reminder emails have been sent successfully!', type: 'success' });
     setTimeout(() => setStatusMessage(null), 5000);
   };
@@ -118,23 +114,23 @@ export const AdminDashboard: React.FC = () => {
 
     const userName = getFullName(user);
     const confirmed = window.confirm(`Are you sure you want to remove ${userName}? This will mark them as inactive and they will no longer appear here. A final notification email will be sent.`);
-    
+
     if (confirmed) {
       try {
         // 1. Send notification email first
         await emailService.sendAccountDeletedEmail(user);
-        
+
         // 2. Perform the soft delete in the database
         await authService.deleteUser(user.id);
-        
+
         // 3. Optimistically update the UI for a fast response
         setUsers(prevUsers => prevUsers.filter(u => u.id !== user.id));
-        
+
         setStatusMessage({ text: `Account for ${userName} has been removed.`, type: 'success' });
       } catch (e) {
         setStatusMessage({ text: `Error removing user. Please try again.`, type: 'error' });
       }
-      
+
       setTimeout(() => setStatusMessage(null), 5000);
     }
   };
@@ -181,19 +177,19 @@ export const AdminDashboard: React.FC = () => {
       <div className="bg-[#2E5D4E] p-8 rounded-2xl shadow-xl text-white">
         <h2 className="text-3xl font-bold mb-2">Church Administration Reports</h2>
         <p className="opacity-80 mb-6">Monitoring compliance across all children's ministry staff.</p>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white bg-opacity-10 p-4 rounded-xl">
             <span className="text-3xl font-black block text-black">{stats.length}</span>
-            <span className="text-xs font-bold uppercase tracking-widest opacity-60 text-deep-green">Total Staff</span>
+            <span className="text-xs font-bold uppercase tracking-widest opacity-60 text-lime-400">Total Staff</span>
           </div>
           <div className="bg-white bg-opacity-10 p-4 rounded-xl">
-            <span className="text-3xl font-black block text-teal-green">{stats.filter(s => !s.isExpired).length}</span>
-            <span className="text-xs font-bold uppercase tracking-widest opacity-60 text-deep-green">Valid Certifications</span>
+            <span className="text-3xl font-black block text-lime-400">{stats.filter(s => !s.isExpired).length}</span>
+            <span className="text-xs font-bold uppercase tracking-widest opacity-60 text-lime-400">Valid Certifications</span>
           </div>
           <div className="bg-white bg-opacity-10 p-4 rounded-xl">
             <span className="text-3xl font-black block text-red-200">{stats.filter(s => s.isExpired).length}</span>
-            <span className="text-xs font-bold uppercase tracking-widest opacity-60 text-deep-green">Outstanding / Expired</span>
+            <span className="text-xs font-bold uppercase tracking-widest opacity-60 text-lime-400">Outstanding / Expired</span>
           </div>
         </div>
       </div>
