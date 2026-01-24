@@ -1,7 +1,8 @@
 
-import { collection, addDoc, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, writeBatch, doc } from 'firebase/firestore';
 import { db } from './firebase';
 import { User, TestResult } from '../types';
+import { configService } from './configService';
 
 // Get a reference to the collection the 'Trigger Email' extension listens to
 const mailCollection = collection(db, 'mail');
@@ -114,6 +115,39 @@ export const emailService = {
       return true;
     } catch (error) {
       console.error("Error creating bulk reminder email batch:", error);
+      return false;
+    }
+  },
+
+  /**
+   * Notifies the admin of an invalid login attempt.
+   */
+  sendInvalidLoginAttemptEmail: async (attemptedEmail: string): Promise<boolean> => {
+    try {
+      const adminEmail = await configService.getAdminNotificationEmail();
+
+      const emailHtml = `
+        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #ccc; border-radius: 10px;">
+          <h2 style="color: #D32F2F;">GBC Portal - Invalid Login Alert</h2>
+          <p>An attempt was made to log in with an email address that is not registered in the system.</p>
+          <p><strong>Attempted Email:</strong> ${attemptedEmail}</p>
+          <hr>
+          <p>This is an automated security notification.</p>
+        </div>
+      `;
+
+      await addDoc(mailCollection, {
+        to: adminEmail,
+        message: {
+          subject: 'GBC Portal Security: Invalid Login Attempt',
+          html: emailHtml,
+        },
+      });
+
+      console.log(`Admin notification sent for invalid login attempt by ${attemptedEmail}.`);
+      return true;
+    } catch (error) {
+      console.error("Error triggering invalid login attempt email:", error);
       return false;
     }
   }

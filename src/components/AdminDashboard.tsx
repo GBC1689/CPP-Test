@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { authService } from '../services/authService';
 import { emailService } from '../services/emailService';
+import { configService } from '../services/configService';
 import { User } from '../types';
 
 // Helper to get a consistent full name
@@ -12,22 +13,25 @@ export const AdminDashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'outstanding' | 'passed'>('all');
   const [statusMessage, setStatusMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
+  const [adminEmail, setAdminEmail] = useState('');
+  const [isSavingEmail, setIsSavingEmail] = useState(false);
 
   // --- DATA FETCHING ---
   useEffect(() => {
-    const fetchUsers = async () => {
+    const fetchData = async () => {
       setIsLoading(true);
       try {
         const allUsers = await authService.getAllUsers();
-        // Filter out soft-deleted users from the view
         setUsers(allUsers.filter(u => !u.isDeleted));
+        const email = await configService.getAdminNotificationEmail();
+        setAdminEmail(email);
       } catch (error) {
-        setStatusMessage({ text: 'Failed to load user data.', type: 'error' });
+        setStatusMessage({ text: 'Failed to load initial data.', type: 'error' });
       } finally {
         setIsLoading(false);
       }
     };
-    fetchUsers();
+    fetchData();
   }, []);
 
   // --- COMPUTED STATS ---
@@ -109,6 +113,28 @@ export const AdminDashboard: React.FC = () => {
     );
   }
 
+  const handleSaveAdminEmail = async () => {
+    setIsSavingEmail(true);
+    setStatusMessage(null);
+    const success = await configService.setAdminNotificationEmail(adminEmail);
+    if (success) {
+      setStatusMessage({ text: 'Admin email updated successfully!', type: 'success' });
+    } else {
+      setStatusMessage({ text: 'Failed to update admin email.', type: 'error' });
+    }
+    setIsSavingEmail(false);
+    setTimeout(() => setStatusMessage(null), 4000);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="text-center p-12 bg-white rounded-2xl shadow-lg">
+        <h2 className="text-xl font-bold text-gray-600">Loading Admin Dashboard...</h2>
+        <p className="text-gray-400">Fetching user compliance data from Firestore.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <div className="bg-[#2E5D4E] p-8 rounded-2xl shadow-xl text-white">
@@ -167,6 +193,26 @@ export const AdminDashboard: React.FC = () => {
         )}
 
         <div className="overflow-x-auto">
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mt-8">
+        <h3 className="text-lg font-bold text-gray-700 mb-2">System Settings</h3>
+        <p className="text-sm text-gray-500 mb-4">Configure email addresses for system notifications.</p>
+        <div className="flex items-center gap-4">
+          <input
+            type="email"
+            value={adminEmail}
+            onChange={(e) => setAdminEmail(e.target.value)}
+            className="flex-grow px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#2E5D4E] outline-none"
+            placeholder="Enter admin notification email"
+          />
+          <button
+            onClick={handleSaveAdminEmail}
+            disabled={isSavingEmail}
+            className="px-6 py-2 bg-[#2E5D4E] text-white rounded-lg font-bold text-sm hover:bg-[#254a3e] transition-all disabled:opacity-50"
+          >
+            {isSavingEmail ? 'Saving...' : 'Save Email'}
+          </button>
+        </div>
+      </div>
           <table className="w-full">
             <thead>
               <tr className="bg-gray-50 text-left text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
