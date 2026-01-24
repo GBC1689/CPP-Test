@@ -15,43 +15,44 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onNavi
     <div className="min-h-screen flex flex-col items-center bg-[#32CD32]">
       <header className="w-full bg-white shadow-sm border-b border-gray-100 mb-8 sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div 
-            className="flex items-center gap-4 cursor-pointer" 
+          <div
+            className="flex items-center gap-4 cursor-pointer"
             onClick={() => onNavigate?.('DASHBOARD')}
           >
-            <div className="w-12 h-12 rounded-full flex items-center justify-center bg-[#2E5D4E] text-white">
-                <span className="text-xl font-bold">GB</span>
-            </div>
+            <img src="/favicon.ico" alt="GBC Logo" className="w-12 h-12" />
             <div>
               <h1 className="text-xl font-bold text-[#2E5D4E] leading-tight">Germiston Baptist Church</h1>
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Germiston Baptist Church - Child Protection</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Child Protection Test</p>
             </div>
           </div>
           
           {user && (
             <div className="flex items-center gap-6">
               <nav className="hidden md:flex items-center gap-2 mr-4">
-                <button 
+                <button
                   onClick={() => onNavigate?.('DASHBOARD')}
                   title="Home"
-                  className={`w-12 h-12 flex items-center justify-center rounded-full transition-colors ${currentState === 'DASHBOARD' ? 'bg-[#2E5D4E] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                  className={`flex flex-col items-center justify-center rounded-lg transition-colors p-2 ${currentState === 'DASHBOARD' ? 'text-[#2E5D4E]' : 'text-gray-500 hover:bg-gray-100'}`}
                 >
                   <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path></svg>
+                  <span className="text-xs font-bold">Home</span>
                 </button>
-                <button 
+                <button
                   onClick={() => onNavigate?.('PROFILE')}
                   title="My Profile"
-                  className={`w-12 h-12 flex items-center justify-center rounded-full transition-colors ${currentState === 'PROFILE' ? 'bg-[#2E5D4E] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                  className={`flex flex-col items-center justify-center rounded-lg transition-colors p-2 ${currentState === 'PROFILE' ? 'text-[#2E5D4E]' : 'text-gray-500 hover:bg-gray-100'}`}
                 >
                   <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path></svg>
+                  <span className="text-xs font-bold">Profile</span>
                 </button>
                 {user.isAdmin && (
-                  <button 
+                  <button
                     onClick={() => onNavigate?.('ADMIN')}
                     title="Admin"
-                    className={`w-12 h-12 flex items-center justify-center rounded-full transition-colors ${currentState === 'ADMIN' ? 'bg-[#2E5D4E] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                    className={`flex flex-col items-center justify-center rounded-lg transition-colors p-2 ${currentState === 'ADMIN' ? 'text-[#2E5D4E]' : 'text-gray-500 hover:bg-gray-100'}`}
                   >
                     <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 00-1 1v1a1 1 0 002 0V3a1 1 0 00-1-1zM4 4h3a3 3 0 006 0h3a2 2 0 012 2v9a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2z"></path><path d="M10.5 9.5a.5.5 0 01-.5.5h-3a.5.5 0 010-1h3a.5.5 0 01.5.5zm0 2a.5.5 0 01-.5.5h-3a.5.5 0 010-1h3a.5.5 0 01.5.5z"></path></svg>
+                    <span className="text-xs font-bold">Admin</span>
                   </button>
                 )}
               </nav>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { authService } from '../services/authService.ts';
+import { emailService } from '../services/emailService.ts';
 import { User } from '../types.ts';
 
 interface AuthProps {
@@ -40,20 +41,27 @@ export const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
           throw new Error('Please enter email and password');
         }
         
-        // Wait for login to complete
-        const user = await authService.login(email, password);
-        
-        // Logic Guard: Only proceed if a user object was actually returned
-        if (user) {
-          onAuthSuccess(user);
-        } else {
-          throw new Error('Account not found.');
+        // --- Enhanced Login Flow ---
+        const userExists = await authService.checkUserExists(email);
+
+        if (!userExists) {
+          // User not found, trigger admin email and show custom message
+          await emailService.sendInvalidLoginAttemptEmail(email);
+          throw new Error("Please register if you are using this app for the first time");
         }
+
+        // User exists, proceed with login
+        const user = await authService.login(email, password);
+        onAuthSuccess(user);
       }
     } catch (err: any) {
-      // This catches the "auth/invalid-credential" and displays it nicely
+      // Specific Firebase error for wrong password
+      if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        setError('Incorrect password. Please try again.');
+      } else {
+        setError(err.message || 'An unexpected error occurred.');
+      }
       console.error("Auth error:", err);
-      setError(err.message || 'Authentication failed. Please check your details.');
     } finally {
       setIsLoading(false);
     }
@@ -121,13 +129,13 @@ export const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute inset-y-0 right-0 px-4 flex items-center text-gray-400 hover:text-gray-600"
+            className="absolute inset-y-0 right-0 px-4 flex items-center"
           >
-            {showPassword ? (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-            ) : (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7 1.274-4.057 5.064-7 9.542-7 1.845 0 3.543.635 4.938 1.688l-1.938 1.938m-1.938-1.938a3 3 0 11-4.243 4.243m4.242-4.242L18.825 13.875M4.938 16.313a9.96 9.96 0 01-2.48-4.313C3.732 7.943 7.523 5 12 5c1.845 0 3.543.635 4.938 1.688m-1.938 1.938l-1.938-1.938m-1.938 1.938a3 3 0 01-4.243-4.243"></path></svg>
-            )}
+            <img
+              src={showPassword ? "/open.ico" : "/closed.ico"}
+              alt={showPassword ? "Hide password" : "Show password"}
+              className="w-5 h-5"
+            />
           </button>
         </div>
 

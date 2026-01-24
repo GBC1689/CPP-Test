@@ -4,7 +4,15 @@ import {
   createUserWithEmailAndPassword,
   signOut
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+import {
+  doc,
+  setDoc,
+  getDoc,
+  updateDoc,
+  arrayUnion,
+  collection,
+  getDocs
+} from 'firebase/firestore';
 import { User, TestResult } from '../types.ts';
 
 export const authService = {
@@ -15,7 +23,7 @@ export const authService = {
       if (userDoc.exists()) {
         const data = userDoc.data();
         return {
-          id: uid, // Ensure the ID is always included
+          id: uid,
           ...data,
           results: data.results || []
         } as User;
@@ -27,21 +35,16 @@ export const authService = {
     }
   },
 
-  // 2. Updated Register: Now accepts name and grade to match Auth.tsx
-  async register(name: string, email: string, password: string, grade: string): Promise<User> {
+  // 2. Updated Register: Accepts firstName and lastName
+  async register(firstName: string, lastName: string, email: string, password: string, grade: string): Promise<User> {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-
-      // Split the name for the firstName/lastName structure
-      const nameParts = name.trim().split(' ');
-      const fName = nameParts[0] || '';
-      const lName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
 
       const newUser: User = {
         id: userCredential.user.uid,
         email,
-        firstName: fName,
-        lastName: lName,
+        firstName: firstName,
+        lastName: lastName,
         gradeTaught: grade,
         isAdmin: false,
         completedTests: 0,
@@ -110,7 +113,38 @@ export const authService = {
     }
   },
 
-  // 6. Logout
+  // 6. Admin: Get All Users (Fixed ReferenceError by using imported functions)
+  async getAllUsers(): Promise<User[]> {
+    try {
+      const usersCollection = collection(db, 'users');
+      const userSnapshot = await getDocs(usersCollection);
+      const userList = userSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as User));
+      return userList;
+    } catch (error) {
+      console.error("Error fetching all users:", error);
+      throw error;
+    }
+  },
+
+  // 7. Admin: Soft Delete a User
+  async deleteUser(uid: string): Promise<boolean> {
+    try {
+      const userRef = doc(db, 'users', uid);
+      await updateDoc(userRef, {
+        intendToTeach: false,
+        isDeleted: true
+      });
+      return true;
+    } catch (error) {
+      console.error("Error soft deleting user:", error);
+      throw error;
+    }
+  },
+
+  // 8. Logout
   async logout() {
     try {
       await signOut(auth);

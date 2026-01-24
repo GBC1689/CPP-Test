@@ -11,7 +11,10 @@ import {
   updateDoc, 
   arrayUnion, 
   collection, 
-  getDocs 
+  getDocs,
+  query,
+  where,
+  limit
 } from 'firebase/firestore';
 import { User, TestResult } from '../types.ts';
 
@@ -144,7 +147,20 @@ export const authService = {
     }
   },
 
-  // 8. Logout
+  // 8. Check if a user exists by email
+  async checkUserExists(email: string): Promise<boolean> {
+    try {
+      const usersCollection = collection(db, 'users');
+      const q = query(usersCollection, where('email', '==', email), limit(1));
+      const querySnapshot = await getDocs(q);
+      return !querySnapshot.empty;
+    } catch (error) {
+      console.error("Error checking if user exists:", error);
+      return false; // Assume user doesn't exist on error
+    }
+  },
+
+  // 9. Logout
   async logout() {
     try {
       await signOut(auth);
