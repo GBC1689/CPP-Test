@@ -28,13 +28,16 @@ const App: React.FC = () => {
             setUser(userData);
             setAppState('DASHBOARD');
           } else {
+            setUser(null);
             setAppState('AUTH');
           }
         } catch (error) {
           console.error("Session restoration error:", error);
+          setUser(null);
           setAppState('AUTH');
         }
       } else {
+        setUser(null);
         setAppState('AUTH');
       }
       setLoading(false);
@@ -56,8 +59,13 @@ const App: React.FC = () => {
   };
 
   const handleAuthSuccess = (authenticatedUser: User) => {
-    setUser(authenticatedUser);
-    setAppState('DASHBOARD');
+    // Safety check: Ensure we actually have a user object
+    if (authenticatedUser && authenticatedUser.id) {
+      setUser(authenticatedUser);
+      setAppState('DASHBOARD');
+    } else {
+      setAppState('AUTH');
+    }
   };
 
   const handleLogout = async () => {
@@ -98,23 +106,35 @@ const App: React.FC = () => {
   }
 
   const renderContent = () => {
+    // --- AUTHENTICATION GATE ---
+    // If we aren't loading and don't have a user, always show Auth unless in AUTH state
+    if (appState !== 'AUTH' && !user) {
+      return <Auth onAuthSuccess={handleAuthSuccess} />;
+    }
+
     switch (appState) {
       case 'AUTH':
         return <Auth onAuthSuccess={handleAuthSuccess} />;
+
       case 'DASHBOARD':
         if (!user) return null;
-        // --- GATEKEEPER LOGIC ---
-        // If profile names are missing, redirect to Profile
+        
+        // --- PROFILE GATEKEEPER ---
+        // Only trigger if we definitely have a logged-in user record
         if (!user.firstName || !user.lastName) {
           return <Profile user={user} onUpdate={refreshUser} />;
         }
         return <Dashboard user={user} onStartQuiz={() => setAppState('QUIZ')} />;
+
       case 'QUIZ':
         return <Quiz onComplete={handleQuizComplete} onCancel={() => setAppState('DASHBOARD')} />;
+
       case 'PROFILE':
         return user ? <Profile user={user} onUpdate={refreshUser} /> : null;
+
       case 'ADMIN':
         return user?.isAdmin ? <AdminDashboard /> : <div className="p-12 text-center text-red-500 font-bold">Unauthorized Access</div>;
+
       case 'RESULT':
         return (
           <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100 text-center space-y-6 max-w-2xl mx-auto">

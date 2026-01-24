@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
-import { authService } from '../services/authService';
-import { User } from '../types';
+import { authService } from '../services/authService.ts';
+import { User } from '../types.ts';
 
 interface AuthProps {
   onAuthSuccess: (user: User) => void;
@@ -16,33 +15,45 @@ export const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
   const [name, setName] = useState('');
   const [grade, setGrade] = useState(GRADES[0]);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // --- THE SECURE HANDSHAKE ---
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
 
-    if (isRegistering) {
-      if (!name || !email || !password || !grade) {
-        setError('Please fill in all fields');
-        return;
-      }
-      const newUser = authService.register(name, email, password, grade);
-      if (newUser) {
+    try {
+      if (isRegistering) {
+        if (!name || !email || !password || !grade) {
+          throw new Error('Please fill in all fields');
+        }
+        
+        // Wait for registration to complete
+        const newUser = await authService.register(name, email, password, grade);
         onAuthSuccess(newUser);
+        
       } else {
-        setError('User already exists');
+        if (!email || !password) {
+          throw new Error('Please enter email and password');
+        }
+        
+        // Wait for login to complete
+        const user = await authService.login(email, password);
+        
+        // Logic Guard: Only proceed if a user object was actually returned
+        if (user) {
+          onAuthSuccess(user);
+        } else {
+          throw new Error('Account not found.');
+        }
       }
-    } else {
-      if (!email || !password) {
-        setError('Please enter email and password');
-        return;
-      }
-      const user = authService.login(email, password);
-      if (user) {
-        onAuthSuccess(user);
-      } else {
-        setError('Invalid email or password. Please try again.');
-      }
+    } catch (err: any) {
+      // This catches the "auth/invalid-credential" and displays it nicely
+      console.error("Auth error:", err);
+      setError(err.message || 'Authentication failed. Please check your details.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -65,6 +76,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
               onChange={(e) => setName(e.target.value)}
               className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#2E5D4E] outline-none"
               placeholder="e.g. John Doe"
+              disabled={isLoading}
             />
           </div>
         )}
@@ -77,6 +89,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
             onChange={(e) => setEmail(e.target.value)}
             className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#2E5D4E] outline-none"
             placeholder="yourname@church.com"
+            disabled={isLoading}
           />
         </div>
 
@@ -88,6 +101,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
             onChange={(e) => setPassword(e.target.value)}
             className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#2E5D4E] outline-none"
             placeholder="••••••••"
+            disabled={isLoading}
           />
         </div>
 
@@ -98,19 +112,25 @@ export const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
               value={grade}
               onChange={(e) => setGrade(e.target.value)}
               className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#2E5D4E] outline-none bg-white"
+              disabled={isLoading}
             >
               {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
             </select>
           </div>
         )}
 
-        {error && <p className="text-red-500 text-sm bg-red-50 p-2 rounded-lg text-center font-medium">{error}</p>}
+        {error && (
+          <div className="text-red-500 text-sm bg-red-50 p-3 rounded-xl text-center font-medium border border-red-100">
+            {error}
+          </div>
+        )}
 
         <button 
           type="submit"
-          className="w-full py-4 bg-[#2E5D4E] text-white font-bold rounded-xl hover:bg-[#254a3e] transition-all shadow-lg"
+          disabled={isLoading}
+          className={`w-full py-4 bg-[#2E5D4E] text-white font-bold rounded-xl transition-all shadow-lg ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#254a3e]'}`}
         >
-          {isRegistering ? 'Create Account' : 'Sign In'}
+          {isLoading ? 'Processing...' : (isRegistering ? 'Create Account' : 'Sign In')}
         </button>
       </form>
 
@@ -118,6 +138,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
         <button 
           onClick={() => { setIsRegistering(!isRegistering); setError(''); }}
           className="text-[#2E5D4E] font-medium hover:underline"
+          disabled={isLoading}
         >
           {isRegistering ? 'Already have an account? Sign in' : "Don't have an account? Register here"}
         </button>
