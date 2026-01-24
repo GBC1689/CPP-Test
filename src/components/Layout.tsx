@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { User, AppState } from '../types';
 
@@ -19,7 +18,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onNavi
             className="flex items-center gap-4 cursor-pointer"
             onClick={() => onNavigate?.('DASHBOARD')}
           >
-            <img src="/favicon.ico" alt="GBC Logo" className="w-12 h-12" />
+            {/* FIXED: Removed leading slash from src so it works on GitHub Pages subfolder */}
+            <img src="favicon.ico" alt="GBC Logo" className="w-12 h-12" />
             <div>
               <h1 className="text-xl font-bold text-[#2E5D4E] leading-tight">Germiston Baptist Church</h1>
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Child Protection Test</p>
