@@ -132,7 +132,8 @@ export const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
             className="absolute inset-y-0 right-0 px-4 flex items-center"
           >
             <img
-              src={showPassword ? "/open.ico" : "/closed.ico"}
+              /* REMOVED LEADING SLASHES BELOW TO FIX 404 ON GITHUB PAGES */
+              src={showPassword ? "open.ico" : "closed.ico"}
               alt={showPassword ? "Hide password" : "Show password"}
               className="w-5 h-5"
             />
