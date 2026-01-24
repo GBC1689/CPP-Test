@@ -12,22 +12,26 @@ export const AdminDashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'outstanding' | 'passed'>('all');
   const [statusMessage, setStatusMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
+  const [notificationEmail, setNotificationEmail] = useState('');
 
   // --- DATA FETCHING ---
   useEffect(() => {
-    const fetchUsers = async () => {
+    const fetchAdminData = async () => {
       setIsLoading(true);
       try {
         const allUsers = await authService.getAllUsers();
-        // Filter out soft-deleted users from the view
         setUsers(allUsers.filter(u => !u.isDeleted));
+
+        const email = await authService.getNotificationEmail();
+        setNotificationEmail(email);
+
       } catch (error) {
         setStatusMessage({ text: 'Failed to load user data.', type: 'error' });
       } finally {
         setIsLoading(false);
       }
     };
-    fetchUsers();
+    fetchAdminData();
   }, []);
 
   // --- COMPUTED STATS ---
@@ -109,6 +113,33 @@ export const AdminDashboard: React.FC = () => {
     );
   }
 
+  const handleSetAdminRole = async (user: User, isAdmin: boolean) => {
+    const userName = getFullName(user);
+    const action = isAdmin ? 'promote' : 'demote';
+    const confirmed = window.confirm(`Are you sure you want to ${action} ${userName} ${isAdmin ? 'to' : 'from'} an admin role?`);
+
+    if (confirmed) {
+      try {
+        await authService.setUserAdminRole(user.id, isAdmin);
+        setUsers(prevUsers => prevUsers.map(u => u.id === user.id ? { ...u, isAdmin } : u));
+        setStatusMessage({ text: `${userName} has been ${action}d.`, type: 'success' });
+      } catch (e) {
+        setStatusMessage({ text: `Error updating user role. Please try again.`, type: 'error' });
+      }
+      setTimeout(() => setStatusMessage(null), 5000);
+    }
+  };
+
+  const handleSaveNotificationEmail = async () => {
+    try {
+      await authService.setNotificationEmail(notificationEmail);
+      setStatusMessage({ text: 'Notification email updated successfully.', type: 'success' });
+    } catch (e) {
+      setStatusMessage({ text: 'Error updating notification email.', type: 'error' });
+    }
+    setTimeout(() => setStatusMessage(null), 5000);
+  };
+
   return (
     <div className="space-y-8">
       <div className="bg-[#2E5D4E] p-8 rounded-2xl shadow-xl text-white">
@@ -128,6 +159,25 @@ export const AdminDashboard: React.FC = () => {
             <span className="text-3xl font-black block text-red-200">{stats.filter(s => s.isExpired).length}</span>
             <span className="text-xs font-bold uppercase tracking-widest opacity-60">Outstanding / Expired</span>
           </div>
+        </div>
+      </div>
+
+      <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
+        <h3 className="text-xl font-bold text-gray-700 mb-2">Global Settings</h3>
+        <div className="flex items-center gap-4">
+          <input
+            type="email"
+            value={notificationEmail}
+            onChange={(e) => setNotificationEmail(e.target.value)}
+            className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#2E5D4E] outline-none"
+            placeholder="Admin notification email"
+          />
+          <button
+            onClick={handleSaveNotificationEmail}
+            className="px-6 py-2 bg-[#2E5D4E] text-white rounded-lg font-bold text-sm hover:bg-[#254a3e] transition-all"
+          >
+            Save
+          </button>
         </div>
       </div>
 
@@ -202,15 +252,34 @@ export const AdminDashboard: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button 
-                      onClick={() => handleDeleteUser(s)}
-                      className="text-gray-400 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-50"
-                      title="Delete User Account"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                      </svg>
-                    </button>
+                    <div className="flex justify-end items-center gap-2">
+                      {s.isAdmin ? (
+                        <button
+                          onClick={() => handleSetAdminRole(s, false)}
+                          className="text-gray-400 hover:text-yellow-500 transition-colors p-2 rounded-lg hover:bg-yellow-50"
+                          title="Demote to User"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleSetAdminRole(s, true)}
+                          className="text-gray-400 hover:text-green-500 transition-colors p-2 rounded-lg hover:bg-green-50"
+                          title="Promote to Admin"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDeleteUser(s)}
+                        className="text-gray-400 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-50"
+                        title="Delete User Account"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

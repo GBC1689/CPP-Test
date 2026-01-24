@@ -152,5 +152,43 @@ export const authService = {
       console.error("Logout error:", error);
       throw error;
     }
+  },
+
+  // 9. Admin: Set User Admin Role
+  async setUserAdminRole(uid: string, isAdmin: boolean): Promise<boolean> {
+    try {
+      const userRef = doc(db, 'users', uid);
+      await updateDoc(userRef, { isAdmin });
+      return true;
+    } catch (error) {
+      console.error("Error setting user admin role:", error);
+      throw error;
+    }
+  },
+
+  // 10. Admin: Get Notification Email
+  async getNotificationEmail(): Promise<string> {
+    try {
+      const configDoc = await getDoc(doc(db, 'config', 'admin'));
+      if (configDoc.exists()) {
+        return configDoc.data().notificationEmail || '';
+      }
+      return '';
+    } catch (error) {
+      console.error("Error fetching notification email:", error);
+      throw error;
+    }
+  },
+
+  // 11. Admin: Set Notification Email
+  async setNotificationEmail(email: string): Promise<boolean> {
+    try {
+      const configRef = doc(db, 'config', 'admin');
+      await setDoc(configRef, { notificationEmail: email }, { merge: true });
+      return true;
+    } catch (error) {
+      console.error("Error setting notification email:", error);
+      throw error;
+    }
   }
 };

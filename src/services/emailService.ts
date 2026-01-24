@@ -1,5 +1,5 @@
 
-import { collection, addDoc, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, writeBatch, doc, getDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { User, TestResult } from '../types';
 
@@ -42,6 +42,7 @@ export const emailService = {
       return true;
     } catch (error) {
       console.error("Error triggering test result email:", error);
+      this.logErrorToAdmin('Test Result Email', error);
       return false;
     }
   },
@@ -76,6 +77,7 @@ export const emailService = {
       return true;
     } catch (error) {
       console.error("Error triggering account deletion email:", error);
+      this.logErrorToAdmin('Account Deletion Email', error);
       return false;
     }
   },
@@ -114,7 +116,43 @@ export const emailService = {
       return true;
     } catch (error) {
       console.error("Error creating bulk reminder email batch:", error);
+      this.logErrorToAdmin('Bulk Reminder Email', error);
       return false;
+    }
+  },
+
+  /**
+   * Logs an email sending error to the admin.
+   */
+  logErrorToAdmin: async (context: string, error: any): Promise<void> => {
+    try {
+      // Fetch the admin email from config
+      const configDoc = await getDoc(doc(db, 'config', 'admin'));
+      const adminEmail = configDoc.exists() ? configDoc.data().notificationEmail : null;
+
+      if (!adminEmail) {
+        console.error("CRITICAL: Admin notification email is not set. Cannot log error.");
+        return;
+      }
+
+      await addDoc(mailCollection, {
+        to: adminEmail,
+        message: {
+          subject: `GBC Portal Alert: Email Sending Failed`,
+          html: `
+            <div style="font-family: sans-serif; padding: 20px; background-color: #fbeaea; border: 1px solid #f5c6cb; border-radius: 10px;">
+              <h2 style="color: #721c24;">Email System Error</h2>
+              <p>An error occurred while trying to send an email.</p>
+              <p><strong>Context:</strong> ${context}</p>
+              <p><strong>Error Details:</strong></p>
+              <pre style="background-color: #f8d7da; padding: 10px; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word;">${JSON.stringify(error, null, 2)}</pre>
+              <p>This is an automated alert. Please check the Firestore 'mail' collection and system logs.</p>
+            </div>
+          `,
+        },
+      });
+    } catch (logError) {
+      console.error("CRITICAL: Failed to even log the email error to the admin.", logError);
     }
   }
 };
