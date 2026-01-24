@@ -1,8 +1,8 @@
-import { auth, db } from './firebase.ts'; 
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  signOut 
+import { auth, db } from './firebase.ts';
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { User, TestResult } from '../types.ts';
@@ -27,16 +27,21 @@ export const authService = {
     }
   },
 
-  // 2. Updated Register: Now accepts firstName and lastName
-  async register(firstName: string, lastName: string, email: string, password: string, grade: string): Promise<User> {
+  // 2. Updated Register: Now accepts name and grade to match Auth.tsx
+  async register(name: string, email: string, password: string, grade: string): Promise<User> {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+
+      // Split the name for the firstName/lastName structure
+      const nameParts = name.trim().split(' ');
+      const fName = nameParts[0] || '';
+      const lName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
 
       const newUser: User = {
         id: userCredential.user.uid,
         email,
-        firstName: firstName,
-        lastName: lastName,
+        firstName: fName,
+        lastName: lName,
         gradeTaught: grade,
         isAdmin: false,
         completedTests: 0,
@@ -44,7 +49,7 @@ export const authService = {
         results: [],
         intendToTeach: true
       };
-      
+
       await setDoc(doc(db, 'users', newUser.id), newUser);
       return newUser;
     } catch (error) {
@@ -58,11 +63,11 @@ export const authService = {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const userProfile = await this.getUserProfile(userCredential.user.uid);
-      
+
       if (!userProfile) {
         throw new Error("User record not found in database.");
       }
-      
+
       return userProfile;
     } catch (error) {
       console.error("Login error in service:", error);
@@ -88,9 +93,9 @@ export const authService = {
       const userRef = doc(db, 'users', userId);
       const userDoc = await getDoc(userRef);
       const userData = userDoc.data();
-      
+
       const currentBest = userData?.bestScore || 0;
-      
+
       const updateData: any = {
         results: arrayUnion(result),
         completedTests: (userData?.completedTests || 0) + 1,
@@ -105,35 +110,7 @@ export const authService = {
     }
   },
 
-  // 6. Admin: Get All Users
-  async getAllUsers(): Promise<User[]> {
-    try {
-      const usersCollection = collection(db, 'users');
-      const userSnapshot = await getDocs(usersCollection);
-      const userList = userSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-      return userList;
-    } catch (error) {
-      console.error("Error fetching all users:", error);
-      throw error;
-    }
-  },
-
-  // 7. Admin: Soft Delete a User
-  async deleteUser(uid: string): Promise<boolean> {
-    try {
-      const userRef = doc(db, 'users', uid);
-      await updateDoc(userRef, {
-        intendToTeach: false, // Mark as not intending to teach
-        isDeleted: true // Soft delete flag
-      });
-      return true;
-    } catch (error) {
-      console.error("Error soft deleting user:", error);
-      throw error;
-    }
-  },
-
-  // 8. Logout
+  // 6. Logout
   async logout() {
     try {
       await signOut(auth);

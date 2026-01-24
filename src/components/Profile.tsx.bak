@@ -20,6 +20,10 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
+    if (!firstName.trim() || !lastName.trim()) {
+      alert("First name and last name are required.");
+      return;
+    }
     setIsSaving(true);
     try {
       // Logic Fix: Calling the correct function name from authService.ts
