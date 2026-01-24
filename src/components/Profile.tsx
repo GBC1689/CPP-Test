@@ -7,17 +7,24 @@ interface ProfileProps {
   onUpdate: () => void;
 }
 
-const GRADES = ["Nursery", "Pre-School", "Grade R", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Youth", "Administration"];
+const GRADES = [
+  "Pre-School", "Administration", "Grade R-1", "Grade 2-3",
+  "Grade 4-7", "Teens", "Junior Youth", "Senior Youth", "Holiday Bible Club"
+];
 
 export const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
   const [firstName, setFirstName] = useState(user.firstName || '');
   const [lastName, setLastName] = useState(user.lastName || '');
-  const [grade, setGrade] = useState(user.gradeTaught || '');
+  const [grades, setGrades] = useState<string[]>(Array.isArray(user.gradeTaught) ? user.gradeTaught : user.gradeTaught ? [user.gradeTaught] : []);
   const [intendToTeach, setIntendToTeach] = useState(user.intendToTeach ?? true);
-  const [password, setPassword] = useState(''); 
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [saved, setSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  const handleGradeChange = (grade: string) => {
+    setGrades(prev => prev.includes(grade) ? prev.filter(g => g !== grade) : [...prev, grade]);
+  };
 
   const handleSave = async () => {
     if (!firstName.trim() || !lastName.trim()) {
@@ -29,7 +36,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
       await authService.updateUserProfile(user.id, {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        gradeTaught: grade,
+        gradeTaught: grades,
         intendToTeach,
         ...(password ? { password } : {})
       });
@@ -76,15 +83,20 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
 
         {/* Row 2: Grade Taught */}
         <div>
-          <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 text-left">Grade You Teach</label>
-          <select 
-            value={grade}
-            onChange={(e) => setGrade(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#2E5D4E] outline-none bg-white"
-          >
-            <option value="">Select Grade</option>
-            {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
-          </select>
+          <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 text-left">Tick all activities you are or would like to minister</label>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            {GRADES.map(g => (
+              <label key={g} className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={grades.includes(g)}
+                  onChange={() => handleGradeChange(g)}
+                  className="w-4 h-4 accent-[#2E5D4E]"
+                />
+                <span className="text-sm font-medium text-gray-700">{g}</span>
+              </label>
+            ))}
+          </div>
         </div>
 
         {/* Row 3: Password Update with Custom Icons */}

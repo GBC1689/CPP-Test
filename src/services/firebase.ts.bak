@@ -1,7 +1,7 @@
 
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { initializeFirestore, persistentLocalCache, CACHE_SIZE_UNLIMITED } from "firebase/firestore";
+import { getFirestore } from "firebase/firestore";
 
 // This version is SAFEST because it hides your keys in the .env.local file
 const firebaseConfig = {
@@ -15,13 +15,6 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore with persistence
-const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({
-    cacheSizeBytes: CACHE_SIZE_UNLIMITED
-  })
-});
-
 // These two lines are the most important—they "export" the tools to the rest of your app
 export const auth = getAuth(app);
-export { db };
+export const db = getFirestore(app);

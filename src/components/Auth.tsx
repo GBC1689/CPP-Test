@@ -7,7 +7,10 @@ interface AuthProps {
   onAuthSuccess: (user: User) => void;
 }
 
-const GRADES = ["Nursery", "Pre-School", "Grade R", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Youth", "Administration"];
+const GRADES = [
+  "Pre-School", "Administration", "Grade R-1", "Grade 2-3",
+  "Grade 4-7", "Teens", "Junior Youth", "Senior Youth", "Holiday Bible Club"
+];
 
 export const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
   const [isRegistering, setIsRegistering] = useState(false);
@@ -16,9 +19,13 @@ export const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [grade, setGrade] = useState(GRADES[0]);
+  const [grades, setGrades] = useState<string[]>([]);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  const handleGradeChange = (grade: string) => {
+    setGrades(prev => prev.includes(grade) ? prev.filter(g => g !== grade) : [...prev, grade]);
+  };
 
   // --- THE SECURE HANDSHAKE ---
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,12 +35,12 @@ export const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
 
     try {
       if (isRegistering) {
-        if (!firstName || !lastName || !email || !password || !grade) {
-          throw new Error('Please fill in all fields');
+        if (!firstName || !lastName || !email || !password || grades.length === 0) {
+          throw new Error('Please fill in all fields and select at least one activity.');
         }
         
         // Wait for registration to complete
-        const newUser = await authService.register(firstName, lastName, email, password, grade);
+        const newUser = await authService.register(firstName, lastName, email, password, grades);
         onAuthSuccess(newUser);
         
       } else {
@@ -142,15 +149,21 @@ export const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
 
         {isRegistering && (
           <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Grade Taught</label>
-            <select 
-              value={grade}
-              onChange={(e) => setGrade(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#2E5D4E] outline-none bg-white"
-              disabled={isLoading}
-            >
-              {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
-            </select>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Tick all activities you are or would like to minister</label>
+            <div className="grid grid-cols-2 gap-2">
+              {GRADES.map(g => (
+                <label key={g} className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={grades.includes(g)}
+                    onChange={() => handleGradeChange(g)}
+                    className="w-4 h-4 accent-[#2E5D4E]"
+                    disabled={isLoading}
+                  />
+                  <span className="text-sm font-medium text-gray-700">{g}</span>
+                </label>
+              ))}
+            </div>
           </div>
         )}
 

@@ -186,11 +186,6 @@ export const AdminDashboard: React.FC = () => {
           </button>
         </div>
 
-        {reminderSent && (
-           <div className="bg-green-50 p-3 text-center text-green-700 font-bold text-sm animate-pulse">
-             Success: Reminders have been sent to all outstanding teachers who still intend to teach!
-           </div>
-        )}
 
         <div className="overflow-x-auto">
       <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mt-8">
@@ -231,7 +226,9 @@ export const AdminDashboard: React.FC = () => {
                     <p className="font-bold text-gray-800">{getFullName(s)}</p>
                     <p className="text-xs text-gray-400">{s.email}</p>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{s.gradeTaught}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600">
+                    {Array.isArray(s.gradeTaught) ? s.gradeTaught.join(', ') : s.gradeTaught}
+                  </td>
                   <td className="px-6 py-4 text-center">
                     {s.intendToTeach ? (
                       <span className="text-green-500 font-bold text-xs uppercase">Yes</span>
