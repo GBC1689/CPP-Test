@@ -4,6 +4,7 @@ import { authService } from '../services/authService';
 import { emailService } from '../services/emailService';
 import { configService } from '../services/configService';
 import { User } from '../types';
+import { TeachersReport } from './TeachersReport';
 
 // Helper to get a consistent full name
 const getFullName = (user: User) => `${user.firstName || ''} ${user.lastName || ''}`.trim();
@@ -15,6 +16,7 @@ export const AdminDashboard: React.FC = () => {
   const [statusMessage, setStatusMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
   const [adminEmail, setAdminEmail] = useState('');
   const [isSavingEmail, setIsSavingEmail] = useState(false);
+  const [showTeachersReport, setShowTeachersReport] = useState(false);
 
   // --- DATA FETCHING ---
   useEffect(() => {
@@ -37,7 +39,7 @@ export const AdminDashboard: React.FC = () => {
   // --- COMPUTED STATS ---
   const stats = useMemo(() => {
     const now = new Date();
-    const twoYearsInMs = 2 * 365 * 24 * 60 * 60 * 1000;
+    const oneYearInMs = 1 * 365 * 24 * 60 * 60 * 1000;
     
     // Filter out admins from the stats view
     const nonAdminUsers = users.filter(u => !u.isAdmin);
@@ -49,7 +51,7 @@ export const AdminDashboard: React.FC = () => {
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
       const lastSuccessDate = latestPass ? new Date(latestPass.date) : null;
-      const isExpired = !lastSuccessDate || (now.getTime() - lastSuccessDate.getTime() > twoYearsInMs);
+      const isExpired = !lastSuccessDate || (now.getTime() - lastSuccessDate.getTime() > oneYearInMs);
 
       return { ...u, isExpired, lastSuccessDate };
     });
@@ -80,7 +82,36 @@ export const AdminDashboard: React.FC = () => {
     setTimeout(() => setStatusMessage(null), 5000);
   };
 
+  const onToggleAdmin = async (user: User) => {
+    const userName = getFullName(user);
+    const newAdminStatus = !user.isAdmin;
+    const action = newAdminStatus ? 'grant admin privileges to' : 'remove admin privileges from';
+
+    const confirmed = window.confirm(`Are you sure you want to ${action} ${userName}?`);
+
+    if (confirmed) {
+      try {
+        await authService.updateUserAdminStatus(user.id, newAdminStatus);
+        setUsers(prevUsers =>
+          prevUsers.map(u => (u.id === user.id ? { ...u, isAdmin: newAdminStatus } : u))
+        );
+        setStatusMessage({
+          text: `Successfully updated admin status for ${userName}.`,
+          type: 'success',
+        });
+      } catch (error) {
+        setStatusMessage({ text: 'Failed to update admin status.', type: 'error' });
+      }
+      setTimeout(() => setStatusMessage(null), 5000);
+    }
+  };
+
   const handleDeleteUser = async (user: User) => {
+    if (user.isAdmin) {
+      alert('You cannot delete a user who is an admin. Please remove their admin status first.');
+      return;
+    }
+
     const userName = getFullName(user);
     const confirmed = window.confirm(`Are you sure you want to remove ${userName}? This will mark them as inactive and they will no longer appear here. A final notification email will be sent.`);
     
@@ -137,22 +168,28 @@ export const AdminDashboard: React.FC = () => {
 
   return (
     <div className="space-y-8">
+      {showTeachersReport && (
+        <TeachersReport
+          users={users}
+          onClose={() => setShowTeachersReport(false)}
+        />
+      )}
       <div className="bg-[#2E5D4E] p-8 rounded-2xl shadow-xl text-white">
         <h2 className="text-3xl font-bold mb-2">Church Administration Reports</h2>
         <p className="opacity-80 mb-6">Monitoring compliance across all children's ministry staff.</p>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white bg-opacity-10 p-4 rounded-xl">
-            <span className="text-3xl font-black block">{stats.length}</span>
-            <span className="text-xs font-bold uppercase tracking-widest opacity-60">Total Staff</span>
+            <span className="text-3xl font-black block text-black">{stats.length}</span>
+            <span className="text-xs font-bold uppercase tracking-widest opacity-60 text-lime-400">Total Staff</span>
           </div>
           <div className="bg-white bg-opacity-10 p-4 rounded-xl">
-            <span className="text-3xl font-black block">{stats.filter(s => !s.isExpired).length}</span>
-            <span className="text-xs font-bold uppercase tracking-widest opacity-60">Valid Certifications</span>
+            <span className="text-3xl font-black block text-lime-400">{stats.filter(s => !s.isExpired).length}</span>
+            <span className="text-xs font-bold uppercase tracking-widest opacity-60 text-lime-400">Valid Certifications</span>
           </div>
           <div className="bg-white bg-opacity-10 p-4 rounded-xl">
             <span className="text-3xl font-black block text-red-200">{stats.filter(s => s.isExpired).length}</span>
-            <span className="text-xs font-bold uppercase tracking-widest opacity-60">Outstanding / Expired</span>
+            <span className="text-xs font-bold uppercase tracking-widest opacity-60 text-lime-400">Outstanding / Expired</span>
           </div>
         </div>
       </div>
@@ -176,14 +213,21 @@ export const AdminDashboard: React.FC = () => {
               </button>
             ))}
           </div>
-          
-          <button 
-            onClick={sendReminders}
-            className="px-6 py-2 bg-red-500 text-white rounded-lg font-bold text-sm hover:bg-red-600 transition-all flex items-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"></path></svg>
-            Send Bulk Reminders
-          </button>
+          <div className="flex gap-4">
+            <button
+              onClick={() => setShowTeachersReport(true)}
+              className="px-6 py-2 bg-blue-500 text-white rounded-lg font-bold text-sm hover:bg-blue-600 transition-all flex items-center gap-2"
+            >
+              Teachers
+            </button>
+            <button
+              onClick={sendReminders}
+              className="px-6 py-2 bg-red-500 text-white rounded-lg font-bold text-sm hover:bg-red-600 transition-all flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"></path></svg>
+              Send Bulk Reminders
+            </button>
+          </div>
         </div>
 
 
@@ -212,10 +256,10 @@ export const AdminDashboard: React.FC = () => {
             <thead>
               <tr className="bg-gray-50 text-left text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
                 <th className="px-6 py-4">Staff Member</th>
-                <th className="px-6 py-4">Grade</th>
                 <th className="px-6 py-4 text-center">Intends to Teach</th>
                 <th className="px-6 py-4">Last Success</th>
                 <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4 text-center">Admin</th>
                 <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
@@ -225,9 +269,6 @@ export const AdminDashboard: React.FC = () => {
                   <td className="px-6 py-4">
                     <p className="font-bold text-gray-800">{getFullName(s)}</p>
                     <p className="text-xs text-gray-400">{s.email}</p>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    {Array.isArray(s.gradeTaught) ? s.gradeTaught.join(', ') : s.gradeTaught}
                   </td>
                   <td className="px-6 py-4 text-center">
                     {s.intendToTeach ? (
@@ -244,8 +285,16 @@ export const AdminDashboard: React.FC = () => {
                       {s.isExpired ? 'Expired' : 'Valid'}
                     </span>
                   </td>
+                  <td className="px-6 py-4 text-center">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      checked={s.isAdmin}
+                      onChange={() => onToggleAdmin(s)}
+                    />
+                  </td>
                   <td className="px-6 py-4 text-right">
-                    <button 
+                    <button
                       onClick={() => handleDeleteUser(s)}
                       className="text-gray-400 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-50"
                       title="Delete User Account"

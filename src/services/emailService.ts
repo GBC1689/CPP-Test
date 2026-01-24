@@ -150,5 +150,46 @@ export const emailService = {
       console.error("Error triggering invalid login attempt email:", error);
       return false;
     }
+  },
+
+  /**
+   * Triggers an email with a PDF certificate attached.
+   */
+  sendCertificateEmail: async (user: User, pdfDataUri: string): Promise<boolean> => {
+    const userName = getFullName(user);
+    const subject = `GBC Child Protection Certificate - ${userName}`;
+
+    const emailHtml = `
+      <div style="font-family: sans-serif; padding: 20px; border: 1px solid #ccc; border-radius: 10px;">
+        <h2 style="color: #2E5D4E;">GBC - Child Protection Certificate</h2>
+        <p>Dear ${userName},</p>
+        <p>Please find your certificate of completion attached to this email.</p>
+        <p>This certificate is valid for one year. Please ensure you retake the test before it expires to remain in active ministry.</p>
+        <br>
+        <p>Regards,<br>GBC Administration</p>
+      </div>
+    `;
+
+    try {
+      await addDoc(mailCollection, {
+        to: user.email,
+        message: {
+          subject: subject,
+          html: emailHtml,
+          attachments: [
+            {
+              filename: `${userName.replace(/\s+/g, '_')}_GBC_Certificate.pdf`,
+              content: pdfDataUri.split('base64,')[1],
+              encoding: 'base64',
+            },
+          ],
+        },
+      });
+      console.log(`Certificate email trigger for ${userName} created.`);
+      return true;
+    } catch (error) {
+      console.error("Error triggering certificate email:", error);
+      return false;
+    }
   }
 };

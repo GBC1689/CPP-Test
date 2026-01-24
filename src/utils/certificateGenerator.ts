@@ -106,6 +106,6 @@ export const generateCertificate = (userName: string, score: number) => {
   doc.setFontSize(9);
   doc.text('This certification is valid for two years and must be renewed to remain in active ministry with children.', A4_WIDTH / 2, A4_HEIGHT - MARGIN - 5, { align: 'center' });
 
-  // --- SAVE DOCUMENT ---
-  doc.save(`${userName.replace(/\s+/g, '_')}_GBC_Certificate.pdf`);
+  // --- RETURN DOCUMENT ---
+  return doc.output('datauristring');
 };

@@ -60,7 +60,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onNavi
               <div className="flex items-center gap-4">
                 <div className="text-right hidden sm:block">
                   <p className="text-sm font-bold text-gray-800">{`${user.firstName} ${user.lastName}`}</p>
-                  <p className="text-[10px] text-gray-400 uppercase tracking-widest">{user.gradeTaught}</p>
+                  <p className={`text-[10px] uppercase tracking-widest ${user.intendToTeach ? 'text-green-500' : 'text-red-500'}`}>
+                    {user.intendToTeach ? 'Active teacher' : 'Request Reinvolvement'}
+                  </p>
                 </div>
                 <button 
                   onClick={onLogout}
