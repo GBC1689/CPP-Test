@@ -4,7 +4,15 @@ import {
   createUserWithEmailAndPassword, 
   signOut 
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { 
+  doc, 
+  setDoc, 
+  getDoc, 
+  updateDoc, 
+  arrayUnion, 
+  collection, 
+  getDocs 
+} from 'firebase/firestore';
 import { User, TestResult } from '../types.ts';
 
 export const authService = {
@@ -15,7 +23,7 @@ export const authService = {
       if (userDoc.exists()) {
         const data = userDoc.data();
         return {
-          id: uid, // Ensure the ID is always included
+          id: uid, 
           ...data,
           results: data.results || []
         } as User;
@@ -27,7 +35,7 @@ export const authService = {
     }
   },
 
-  // 2. Updated Register: Now accepts firstName and lastName
+  // 2. Updated Register: Accepts firstName and lastName
   async register(firstName: string, lastName: string, email: string, password: string, grade: string): Promise<User> {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -105,12 +113,15 @@ export const authService = {
     }
   },
 
-  // 6. Admin: Get All Users
+  // 6. Admin: Get All Users (Fixed ReferenceError by using imported functions)
   async getAllUsers(): Promise<User[]> {
     try {
       const usersCollection = collection(db, 'users');
       const userSnapshot = await getDocs(usersCollection);
-      const userList = userSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+      const userList = userSnapshot.docs.map(doc => ({ 
+        id: doc.id, 
+        ...doc.data() 
+      } as User));
       return userList;
     } catch (error) {
       console.error("Error fetching all users:", error);
@@ -123,8 +134,8 @@ export const authService = {
     try {
       const userRef = doc(db, 'users', uid);
       await updateDoc(userRef, {
-        intendToTeach: false, // Mark as not intending to teach
-        isDeleted: true // Soft delete flag
+        intendToTeach: false, 
+        isDeleted: true 
       });
       return true;
     } catch (error) {
