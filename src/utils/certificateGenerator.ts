@@ -1,9 +1,29 @@
 import jsPDF from 'jspdf';
 
+// --- HELPER TO CONVERT LOGO TO BASE64 ---
+const getBase64ImageFromURL = (url: string): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.setAttribute('crossOrigin', 'anonymous');
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(img, 0, 0);
+      const dataURL = canvas.toDataURL('image/png');
+      resolve(dataURL);
+    };
+    img.onerror = error => reject(error);
+    img.src = url;
+  });
+};
+
+
 // Note: jsPDF doesn't support custom fonts in this environment without font files.
 // We will use 'times' in italic style to simulate a cursive/formal look.
 
-export const generateCertificate = (userName: string, score: number) => {
+export const generateCertificate = async (userName: string, score: number, lastSuccessfulDate: Date) => {
   const doc = new jsPDF({
     orientation: 'landscape',
     unit: 'mm',
@@ -19,10 +39,10 @@ export const generateCertificate = (userName: string, score: number) => {
   const A4_HEIGHT = 210;
   const MARGIN = 15;
 
-  // --- DATES (Policy requires 2-year validity) ---
-  const today = new Date();
-  const expiryDate = new Date();
-  expiryDate.setFullYear(today.getFullYear() + 2);
+  // --- DATES (Policy requires 1-year validity from last pass) ---
+  const today = new Date(); // Date of generation
+  const expiryDate = new Date(lastSuccessfulDate); // Start from the successful date
+  expiryDate.setDate(expiryDate.getDate() + 365); // Add 365 days
   const dateStr = today.toLocaleDateString('en-GB');
   const expiryStr = expiryDate.toLocaleDateString('en-GB');
 
@@ -40,11 +60,12 @@ export const generateCertificate = (userName: string, score: number) => {
   doc.rect(MARGIN - 1, MARGIN - 1, A4_WIDTH - (MARGIN - 1) * 2, A4_HEIGHT - (MARGIN - 1) * 2);
 
   // --- LOGO (LARGE & CENTERED) ---
-  const logoSize = 50; // Kept at 50 to avoid crowding the header
+  const logoSize = 50;
   try {
-    doc.addImage('/logo.png', 'PNG', (A4_WIDTH / 2) - (logoSize / 2), 25, logoSize, logoSize);
+    const logoData = await getBase64ImageFromURL('/logo.png');
+    doc.addImage(logoData, 'PNG', (A4_WIDTH / 2) - (logoSize / 2), 25, logoSize, logoSize);
   } catch (e) {
-    console.error("Certificate logo not found. Ensure /public/logo.png exists.");
+    console.error("Certificate logo not found or failed to load. Ensure /public/logo.png exists.", e);
     // Draw a placeholder if logo fails
     doc.setDrawColor(DARK_GREY);
     doc.rect((A4_WIDTH / 2) - (logoSize / 2), 25, logoSize, logoSize);
@@ -104,7 +125,7 @@ export const generateCertificate = (userName: string, score: number) => {
   doc.setTextColor(DARK_GREY);
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(9);
-  doc.text('This certification is valid for two years and must be renewed to remain in active ministry with children.', A4_WIDTH / 2, A4_HEIGHT - MARGIN - 5, { align: 'center' });
+  doc.text('Renewal is required annually on or before the 1st anniversary.', A4_WIDTH / 2, A4_HEIGHT - MARGIN - 5, { align: 'center' });
 
   // --- RETURN DOCUMENT ---
   doc.save('certificate.pdf');

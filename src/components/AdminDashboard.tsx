@@ -51,7 +51,7 @@ export const AdminDashboard: React.FC = () => {
 
       if (lastSuccessDate) {
         const expiryDate = new Date(lastSuccessDate);
-        expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+        expiryDate.setDate(expiryDate.getDate() + 365); // Use 365 days for consistency
         expiryDate.setHours(0, 0, 0, 0);
 
         isExpired = now >= expiryDate;
@@ -185,15 +185,15 @@ export const AdminDashboard: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white bg-opacity-10 p-4 rounded-xl">
             <span className="text-3xl font-black block text-black">{stats.length}</span>
-            <span className="text-xs font-bold uppercase tracking-widest opacity-60 text-deep-green">Total Staff</span>
+            <span className="text-xs font-bold uppercase tracking-widest opacity-60 text-[#2E5D4E]">Total Staff</span>
           </div>
           <div className="bg-white bg-opacity-10 p-4 rounded-xl">
-            <span className="text-3xl font-black block text-teal-green">{stats.filter(s => !s.isExpired).length}</span>
-            <span className="text-xs font-bold uppercase tracking-widest opacity-60 text-deep-green">Valid Certifications</span>
+            <span className="text-3xl font-black block text-[#254a3e]">{stats.filter(s => !s.isExpired).length}</span>
+            <span className="text-xs font-bold uppercase tracking-widest opacity-60 text-[#2E5D4E]">Valid Certifications</span>
           </div>
           <div className="bg-white bg-opacity-10 p-4 rounded-xl">
-            <span className="text-3xl font-black block text-red-200">{stats.filter(s => s.isExpired).length}</span>
-            <span className="text-xs font-bold uppercase tracking-widest opacity-60 text-deep-green">Outstanding / Expired</span>
+            <span className="text-3xl font-black block text-[#CE2029]">{stats.filter(s => s.isExpired).length}</span>
+            <span className="text-xs font-bold uppercase tracking-widest opacity-60 text-[#2E5D4E]">Outstanding / Expired</span>
           </div>
         </div>
       </div>

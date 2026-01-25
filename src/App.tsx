@@ -179,7 +179,11 @@ const App: React.FC = () => {
                 </button>
                 {currentResult?.passed && user && (
                   <button
-                    onClick={() => generateCertificate(`${user.firstName} ${user.lastName}`, currentResult.score)}
+                    onClick={() => {
+                      // The date from the result is a string, so we convert it to a Date object.
+                      const successfulDate = new Date(currentResult.date);
+                      generateCertificate(`${user.firstName} ${user.lastName}`, currentResult.score, successfulDate);
+                    }}
                     className="px-8 py-3 bg-blue-600 text-white rounded-xl font-bold hover:scale-105 transition-transform"
                   >
                     Download Certificate
