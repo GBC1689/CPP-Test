@@ -16,7 +16,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onStartQuiz }) => {
 
     try {
       const fullName = `${user.firstName} ${user.lastName}`;
-      generateCertificate(fullName, attempt.score);
+      // The date from the attempt is already a string, so we convert it to a Date object.
+      const successfulDate = new Date(attempt.date);
+      generateCertificate(fullName, attempt.score, successfulDate);
     } catch (error) {
       console.error('Failed to generate certificate:', error);
       alert('There was an error generating your certificate. Please try again later.');
