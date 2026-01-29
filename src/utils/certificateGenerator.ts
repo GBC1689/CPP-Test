@@ -2,7 +2,6 @@ import jsPDF from 'jspdf';
 
 /**
  * Robust Base64 Image Loader
- * Bypasses pathing issues by drawing the image to an invisible canvas first.
  */
 const getBase64ImageFromURL = (url: string): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -26,23 +25,34 @@ const getBase64ImageFromURL = (url: string): Promise<string> => {
       ctx.drawImage(img, 0, 0);
       resolve(canvas.toDataURL('image/png'));
     };
-    img.onerror = () => reject(`Failed to load logo at ${finalUrl}.`);
+    img.onerror = () => reject(`Failed to load logo.`);
     img.src = finalUrl;
   });
 };
 
+/**
+ * Helper to capitalize names
+ */
 const formatTitleCase = (str: string) => {
   if (!str) return '';
-  return str
-    .toLowerCase()
-    .split(' ')
-    .filter(word => word.length > 0)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
+  return str.toLowerCase().split(' ').filter(word => word.length > 0)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+};
+
+/**
+ * Helper to get Initial and Surname (e.g., "John Doe" -> "J. Doe")
+ */
+const getInitialAndSurname = (fullName: string) => {
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 1) return formatTitleCase(parts[0]);
+  const initial = parts[0].charAt(0).toUpperCase();
+  const surname = formatTitleCase(parts[parts.length - 1]);
+  return `${initial}. ${surname}`;
 };
 
 export const generateCertificate = async (userName: string, score: number, lastPassDate: string | Date) => {
   const formattedName = formatTitleCase(userName);
+  const signatureName = getInitialAndSurname(userName);
 
   const doc = new jsPDF({
     orientation: 'landscape',
@@ -76,18 +86,13 @@ export const generateCertificate = async (userName: string, score: number, lastP
   doc.setLineWidth(1.5);
   doc.rect(MARGIN, MARGIN, A4_WIDTH - MARGIN * 2, A4_HEIGHT - MARGIN * 2);
 
-  doc.setDrawColor(PRIMARY_GREEN);
-  doc.setLineWidth(0.5);
-  doc.rect(MARGIN - 1, MARGIN - 1, A4_WIDTH - (MARGIN - 1) * 2, A4_HEIGHT - (MARGIN - 1) * 2);
-
-  // --- LOGO RENDERING (DOUBLED SIZE) ---
-  const targetWidth = 150; // Doubled from 75
+  // --- LOGO ---
+  const targetWidth = 150; 
   let currentY = 20;
 
   try {
     const logoBase64 = await getBase64ImageFromURL('logo.png');
     const imgProps = doc.getImageProperties(logoBase64);
-    
     const ratio = imgProps.width / imgProps.height;
     const targetHeight = targetWidth / ratio;
 
@@ -99,19 +104,16 @@ export const generateCertificate = async (userName: string, score: number, lastP
       targetWidth, 
       targetHeight
     );
-    
-    // Adjust currentY to be below the new larger logo (Logo bottom + spacing)
-    currentY += targetHeight + 10; 
+    currentY += targetHeight + 12; 
   } catch (e) {
-    console.error("Certificate logo error.", e);
-    currentY += 40; // Fallback spacing
+    currentY += 45;
   }
 
-  // --- TEXT CONTENT (REPOSITIONED BASED ON LOGO SIZE) ---
+  // --- MAIN CONTENT ---
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(28);
+  doc.setFontSize(30);
   doc.setTextColor(PRIMARY_GREEN);
-  doc.text('GERMISTON BAPTIST CHURCH', A4_WIDTH / 2, currentY, { align: 'center' });
+  doc.text('CHILD PROTECTION POLICY', A4_WIDTH / 2, currentY, { align: 'center' });
 
   doc.setFontSize(22);
   doc.setTextColor(DARK_GREY);
@@ -121,37 +123,57 @@ export const generateCertificate = async (userName: string, score: number, lastP
   doc.setFontSize(16);
   doc.text('This is to certify that', A4_WIDTH / 2, currentY + 25, { align: 'center' });
 
-  // PRINT FORMATTED NAME
   doc.setFont('times', 'italic');
   doc.setFontSize(38);
   doc.setTextColor(GOLD);
   doc.text(formattedName, A4_WIDTH / 2, currentY + 42, { align: 'center' });
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(14);
+  doc.setFontSize(15);
   doc.setTextColor(DARK_GREY);
   doc.text(
     `Has successfully completed the Child Protection Policy Training with a score of ${score}%.`,
-    A4_WIDTH / 2, currentY + 55, { align: 'center' }
+    A4_WIDTH / 2, currentY + 56, { align: 'center' }
   );
 
-  // Footer section remains relative to bottom to ensure it stays on one page
-  const footerY = 185;
-  doc.setFontSize(11);
+  // --- FOOTER: SIGNATURES & DATES ---
+  const signatureY = 178;
+  doc.setFontSize(13); 
   doc.setTextColor(DARK_GREY);
-  doc.text(`Date Issued: ${dateStr}`, MARGIN + 15, footerY);
+  
+  // Date Issued (Left)
+  doc.setFont('helvetica', 'bold');
+  doc.text('Date Issued:', MARGIN + 10, signatureY - 6);
+  doc.setFont('helvetica', 'normal');
+  doc.text(dateStr, MARGIN + 10, signatureY);
 
+  // Recipient Signature (Middle-Left)
   doc.setLineWidth(0.3);
-  doc.line(A4_WIDTH / 2 - 35, footerY - 2, A4_WIDTH / 2 + 35, footerY - 2);
-  doc.text('Church Leadership', A4_WIDTH / 2, footerY + 2, { align: 'center' });
+  doc.line(85, signatureY - 2, 135, signatureY - 2); 
+  doc.setFontSize(10);
+  doc.text(`Recipient: ${signatureName}`, 110, signatureY + 3, { align: 'center' });
+  doc.setFontSize(8);
+  doc.text('(Signature)', 110, signatureY + 7, { align: 'center' });
 
+  // CPO / SSI / Elder (Middle-Right)
+  doc.line(160, signatureY - 2, 210, signatureY - 2); 
+  doc.setFontSize(10);
+  doc.text('CPO / SSI / Elder', 185, signatureY + 3, { align: 'center' });
+  doc.setFontSize(8);
+  doc.text('(Signature)', 185, signatureY + 7, { align: 'center' });
+
+  // Valid Until (Right)
+  doc.setFontSize(13);
   doc.setTextColor(FIRE_ENGINE_RED); 
-  doc.text(`Valid Until: ${expiryStr}`, A4_WIDTH - MARGIN - 55, footerY);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Valid Until:', A4_WIDTH - MARGIN - 50, signatureY - 6);
+  doc.text(expiryStr, A4_WIDTH - MARGIN - 50, signatureY);
 
+  // --- RENEWAL NOTICE ---
   doc.setTextColor(DARK_GREY);
   doc.setFont('helvetica', 'italic');
-  doc.setFontSize(9);
-  doc.text('Renewal is required annually on or before the 1st anniversary.', A4_WIDTH / 2, A4_HEIGHT - MARGIN - 5, { align: 'center' });
+  doc.setFontSize(11); 
+  doc.text('Renewal is required annually on or before the 1st anniversary.', A4_WIDTH / 2, A4_HEIGHT - MARGIN - 4, { align: 'center' });
 
   return doc.output('datauristring');
 };
