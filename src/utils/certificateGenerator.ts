@@ -3,14 +3,12 @@ import jsPDF from 'jspdf';
 /**
  * Robust Base64 Image Loader
  * Bypasses pathing issues by drawing the image to an invisible canvas first.
- * Specifically handles GitHub Pages sub-directories.
  */
 const getBase64ImageFromURL = (url: string): Promise<string> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.setAttribute('crossOrigin', 'anonymous');
     
-    // Logic to handle GitHub Pages sub-directory pathing
     const baseUrl = window.location.origin;
     const pathName = window.location.pathname.endsWith('/') 
       ? window.location.pathname.slice(0, -1) 
@@ -28,14 +26,11 @@ const getBase64ImageFromURL = (url: string): Promise<string> => {
       ctx.drawImage(img, 0, 0);
       resolve(canvas.toDataURL('image/png'));
     };
-    img.onerror = () => reject(`Failed to load logo at ${finalUrl}. Ensure logo.png is in the public folder.`);
+    img.onerror = () => reject(`Failed to load logo at ${finalUrl}.`);
     img.src = finalUrl;
   });
 };
 
-/**
- * Helper to capitalize names (e.g., "john doe" -> "John Doe")
- */
 const formatTitleCase = (str: string) => {
   if (!str) return '';
   return str
@@ -46,14 +41,7 @@ const formatTitleCase = (str: string) => {
     .join(' ');
 };
 
-/**
- * Generates the GBC Certificate
- * @param userName - The full name of the staff member
- * @param score - The quiz score percentage
- * @param lastPassDate - The date the test was actually passed (from Firestore)
- */
 export const generateCertificate = async (userName: string, score: number, lastPassDate: string | Date) => {
-  // --- PRE-PROCESSING ---
   const formattedName = formatTitleCase(userName);
 
   const doc = new jsPDF({
@@ -64,15 +52,14 @@ export const generateCertificate = async (userName: string, score: number, lastP
 
   // --- STYLING CONSTANTS ---
   const GOLD = '#D4AF37';
-  const PRIMARY_GREEN = '#2E5D4E';   // Dark Green
-  const FIRE_ENGINE_RED = '#CE2029'; // Fire Engine Red
+  const PRIMARY_GREEN = '#2E5D4E';   
+  const FIRE_ENGINE_RED = '#CE2029'; 
   const DARK_GREY = '#333333';
   const LIGHT_GREY_BG = '#F9F9F9';
   const A4_WIDTH = 297;
   const A4_HEIGHT = 210;
   const MARGIN = 15;
 
-  // --- DATE LOGIC (1 YEAR VALIDITY) ---
   const issueDate = new Date(lastPassDate);
   const expiryDate = new Date(issueDate);
   expiryDate.setDate(issueDate.getDate() + 365);
@@ -93,13 +80,14 @@ export const generateCertificate = async (userName: string, score: number, lastP
   doc.setLineWidth(0.5);
   doc.rect(MARGIN - 1, MARGIN - 1, A4_WIDTH - (MARGIN - 1) * 2, A4_HEIGHT - (MARGIN - 1) * 2);
 
-  // --- LOGO RENDERING (FIXED ASPECT RATIO) ---
-  const targetWidth = 75; // Adjust this if you want the logo bigger or smaller
+  // --- LOGO RENDERING (DOUBLED SIZE) ---
+  const targetWidth = 150; // Doubled from 75
+  let currentY = 20;
+
   try {
     const logoBase64 = await getBase64ImageFromURL('logo.png');
     const imgProps = doc.getImageProperties(logoBase64);
     
-    // Calculate height dynamically based on your 696x287 ratio
     const ratio = imgProps.width / imgProps.height;
     const targetHeight = targetWidth / ratio;
 
@@ -107,57 +95,58 @@ export const generateCertificate = async (userName: string, score: number, lastP
       logoBase64, 
       'PNG', 
       (A4_WIDTH / 2) - (targetWidth / 2), 
-      20, // Y position from top
+      currentY, 
       targetWidth, 
       targetHeight
     );
+    
+    // Adjust currentY to be below the new larger logo (Logo bottom + spacing)
+    currentY += targetHeight + 10; 
   } catch (e) {
     console.error("Certificate logo error.", e);
-    doc.setDrawColor(DARK_GREY);
-    doc.rect((A4_WIDTH / 2) - (targetWidth / 2), 20, targetWidth, 20);
-    doc.text("GBC LOGO", A4_WIDTH / 2, 32, { align: 'center' });
+    currentY += 40; // Fallback spacing
   }
 
-  // --- TEXT CONTENT ---
+  // --- TEXT CONTENT (REPOSITIONED BASED ON LOGO SIZE) ---
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(26);
+  doc.setFontSize(28);
   doc.setTextColor(PRIMARY_GREEN);
-  // Pushed down to 88 to accommodate the wider logo
-  doc.text('GERMISTON BAPTIST CHURCH', A4_WIDTH / 2, 88, { align: 'center' });
+  doc.text('GERMISTON BAPTIST CHURCH', A4_WIDTH / 2, currentY, { align: 'center' });
 
-  doc.setFontSize(20);
+  doc.setFontSize(22);
   doc.setTextColor(DARK_GREY);
-  doc.text('Certificate of Achievement', A4_WIDTH / 2, 100, { align: 'center' });
+  doc.text('Certificate of Achievement', A4_WIDTH / 2, currentY + 12, { align: 'center' });
 
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(16);
-  doc.text('This is to certify that', A4_WIDTH / 2, 115, { align: 'center' });
+  doc.text('This is to certify that', A4_WIDTH / 2, currentY + 25, { align: 'center' });
 
   // PRINT FORMATTED NAME
   doc.setFont('times', 'italic');
-  doc.setFontSize(36);
+  doc.setFontSize(38);
   doc.setTextColor(GOLD);
-  doc.text(formattedName, A4_WIDTH / 2, 132, { align: 'center' });
+  doc.text(formattedName, A4_WIDTH / 2, currentY + 42, { align: 'center' });
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(14);
   doc.setTextColor(DARK_GREY);
   doc.text(
     `Has successfully completed the Child Protection Policy Training with a score of ${score}%.`,
-    A4_WIDTH / 2, 145, { align: 'center' }
+    A4_WIDTH / 2, currentY + 55, { align: 'center' }
   );
 
-  const footerY = 175;
+  // Footer section remains relative to bottom to ensure it stays on one page
+  const footerY = 185;
   doc.setFontSize(11);
   doc.setTextColor(DARK_GREY);
-  doc.text(`Date Issued: ${dateStr}`, MARGIN + 10, footerY);
+  doc.text(`Date Issued: ${dateStr}`, MARGIN + 15, footerY);
 
   doc.setLineWidth(0.3);
   doc.line(A4_WIDTH / 2 - 35, footerY - 2, A4_WIDTH / 2 + 35, footerY - 2);
   doc.text('Church Leadership', A4_WIDTH / 2, footerY + 2, { align: 'center' });
 
   doc.setTextColor(FIRE_ENGINE_RED); 
-  doc.text(`Valid Until: ${expiryStr}`, A4_WIDTH - MARGIN - 50, footerY);
+  doc.text(`Valid Until: ${expiryStr}`, A4_WIDTH - MARGIN - 55, footerY);
 
   doc.setTextColor(DARK_GREY);
   doc.setFont('helvetica', 'italic');
