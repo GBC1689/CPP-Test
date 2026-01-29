@@ -3,11 +3,22 @@ import jsPDF from 'jspdf';
 /**
  * Robust Base64 Image Loader
  * Bypasses pathing issues by drawing the image to an invisible canvas first.
+ * Specifically handles GitHub Pages sub-directories.
  */
 const getBase64ImageFromURL = (url: string): Promise<string> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.setAttribute('crossOrigin', 'anonymous');
+    
+    // Logic to handle GitHub Pages sub-directory pathing
+    const baseUrl = window.location.origin;
+    const pathName = window.location.pathname.endsWith('/') 
+      ? window.location.pathname.slice(0, -1) 
+      : window.location.pathname;
+    
+    const cleanUrl = url.startsWith('/') ? url : `/${url}`;
+    const finalUrl = pathName.includes(cleanUrl) ? `${baseUrl}${cleanUrl}` : `${baseUrl}${pathName}${cleanUrl}`;
+
     img.onload = () => {
       const canvas = document.createElement('canvas');
       canvas.width = img.width;
@@ -17,9 +28,23 @@ const getBase64ImageFromURL = (url: string): Promise<string> => {
       ctx.drawImage(img, 0, 0);
       resolve(canvas.toDataURL('image/png'));
     };
-    img.onerror = () => reject(`Failed to load logo at ${url}. Ensure logo.png is in the public folder.`);
-    img.src = url;
+    img.onerror = () => reject(`Failed to load logo at ${finalUrl}. Ensure logo.png is in the public folder.`);
+    img.src = finalUrl;
   });
+};
+
+/**
+ * Helper to capitalize names (e.g., "john doe" -> "John Doe")
+ * Used to ensure certificates look professional even if user input was lowercase.
+ */
+const formatTitleCase = (str: string) => {
+  if (!str) return '';
+  return str
+    .toLowerCase()
+    .split(' ')
+    .filter(word => word.length > 0)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 };
 
 /**
@@ -29,6 +54,9 @@ const getBase64ImageFromURL = (url: string): Promise<string> => {
  * @param lastPassDate - The date the test was actually passed (from Firestore)
  */
 export const generateCertificate = async (userName: string, score: number, lastPassDate: string | Date) => {
+  // --- PRE-PROCESSING ---
+  const formattedName = formatTitleCase(userName);
+
   const doc = new jsPDF({
     orientation: 'landscape',
     unit: 'mm',
@@ -69,7 +97,7 @@ export const generateCertificate = async (userName: string, score: number, lastP
   // Logo Rendering
   const logoSize = 50;
   try {
-    const logoBase64 = await getBase64ImageFromURL('/logo.png');
+    const logoBase64 = await getBase64ImageFromURL('logo.png');
     doc.addImage(logoBase64, 'PNG', (A4_WIDTH / 2) - (logoSize / 2), 25, logoSize, logoSize);
   } catch (e) {
     console.error("Certificate logo not found.", e);
@@ -92,10 +120,11 @@ export const generateCertificate = async (userName: string, score: number, lastP
   doc.setFontSize(16);
   doc.text('This is to certify that', A4_WIDTH / 2, 115, { align: 'center' });
 
+  // PRINT FORMATTED NAME
   doc.setFont('times', 'italic');
   doc.setFontSize(36);
   doc.setTextColor(GOLD);
-  doc.text(userName, A4_WIDTH / 2, 132, { align: 'center' });
+  doc.text(formattedName, A4_WIDTH / 2, 132, { align: 'center' });
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(14);
