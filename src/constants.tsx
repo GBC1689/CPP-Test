@@ -1,4 +1,3 @@
-
 import { Question } from './types';
 
 export const COLORS = {
@@ -18,16 +17,6 @@ export const QUESTION_POOL: Question[] = [
     falseIndex: 3,
     explanation: "As per section 1.2, a child is defined as a person under 18 years of age."
   },
-  /* 
-  {
-    id: 2,
-    text: "Who is the currently listed Sunday School Superintendent in the policy?",
-    options: ["Shane Mayer", "The Church Elders", "The Child Protection Officer", "The Local Police Chief"],
-    correctIndex: 0,
-    falseIndex: 3,
-    explanation: "Section 1.1 lists Shane Mayer as the Sunday School Superintendent (0696919643)."
-  },
-  */
   {
     id: 3,
     text: "Which Act does this policy ensure legal compliance with?",
@@ -274,7 +263,7 @@ export const QUESTION_POOL: Question[] = [
     options: ["To make more work for volunteers", "To increase church membership", "To create a safe and secure environment for children to grow and learn", "To win a safety award"],
     correctIndex: 2,
     falseIndex: 3,
-    explanation: "The primary focus is always the safety, well-being, and protection of the children in the church's care."
+    explanation: "The primary focus is always the safety, well-well-being, and protection of the children in the church's care."
   },
   {
     id: 34,
