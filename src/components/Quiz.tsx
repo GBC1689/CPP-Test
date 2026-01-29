@@ -6,7 +6,7 @@ import { emailService } from '../services/emailService';
 interface QuizProps {
   onComplete: (result: TestResult) => void;
   onCancel: () => void;
-  currentUser: User; // Changed from userName to User object to access all details
+  currentUser: User; 
 }
 
 export const Quiz: React.FC<QuizProps> = ({ onComplete, onCancel, currentUser }) => {
@@ -20,7 +20,6 @@ export const Quiz: React.FC<QuizProps> = ({ onComplete, onCancel, currentUser })
   const [isLoading, setIsLoading] = useState(true);
   const [requestStatus, setRequestStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
 
-  // Initialize questions from Firestore
   useEffect(() => {
     const fetchQuestions = async () => {
       setIsLoading(true);
@@ -99,10 +98,9 @@ export const Quiz: React.FC<QuizProps> = ({ onComplete, onCancel, currentUser })
   };
 
   const handleRequestCertificate = async () => {
-    const score = attemptsHistory.filter(a => a.isCorrect).length * 5;
     setRequestStatus('sending');
     try {
-      await emailService.sendCertificateRequest(currentUser, score);
+      await emailService.sendCertificateRequest(currentUser);
       setRequestStatus('sent');
     } catch (error) {
       console.error("Certificate Request error:", error);
@@ -119,7 +117,6 @@ export const Quiz: React.FC<QuizProps> = ({ onComplete, onCancel, currentUser })
     );
   }
 
-  // Result View
   if (testFinished) {
     const score = attemptsHistory.filter(a => a.isCorrect).length * 5;
     const passed = score >= 80;
@@ -197,14 +194,16 @@ export const Quiz: React.FC<QuizProps> = ({ onComplete, onCancel, currentUser })
       </div>
 
       {showExplanation && (
-        <div className="mt-8 p-6 bg-[#2E5D4E] bg-opacity-5 rounded-2xl border-2 border-[#2E5D4E] animate-slide-up">
+        /* The border and background now use a lighter version of the lime green for visibility */
+        <div className="mt-8 p-6 bg-[#32CD32] bg-opacity-5 rounded-2xl border-2 border-[#32CD32] animate-slide-up">
           <div className="flex items-start gap-4">
-             <div className="bg-[#2E5D4E] text-white p-2 rounded-lg mt-1">
+             <div className="bg-[#32CD32] text-white p-2 rounded-lg mt-1">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
              </div>
              <div>
-               <h4 className="font-bold text-[#2E5D4E] text-lg mb-1">Let's learn why:</h4>
-               <p className="text-gray-700 leading-relaxed mb-4">{currentQuestion.explanation}</p>
+               {/* CHANGED: Text color set to Lime Green (#32CD32) */}
+               <h4 className="font-bold text-[#32CD32] text-xl mb-1">Let's learn why:</h4>
+               <p className="text-gray-700 font-semibold leading-relaxed mb-4">{currentQuestion.explanation}</p>
                <button onClick={handleNextQuestion} className="bg-[#2E5D4E] text-white px-6 py-2 rounded-lg font-bold hover:bg-opacity-90 transition-all">Continue</button>
              </div>
           </div>
