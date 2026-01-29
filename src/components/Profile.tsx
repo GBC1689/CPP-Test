@@ -8,8 +8,8 @@ interface ProfileProps {
 }
 
 const GRADES = [
-  "Pre-School", "Administration", "Grade R-1", "Grade 2-3",
-  "Grade 4-7", "Teens", "Junior Youth", "Senior Youth", "Holiday Bible Club"
+  "Pre-School", "Administration", "Grade R-1", "Grade 2-4",
+  "Grade 5-7", "Teens", "Junior Youth", "Senior Youth", "Holiday Bible Club"
 ];
 
 export const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
@@ -54,7 +54,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
 
   return (
     <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100 max-w-2xl mx-auto">
-      <h2 className="text-3xl font-bold text-gray-800 mb-6">My Profile</h2>
+      <h2 className="text-3xl font-bold text-gray-800 mb-6 text-left">My Profile</h2>
       
       <div className="space-y-6">
         {/* Row 1: First and Last Name */}
@@ -133,7 +133,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
             onChange={(e) => setIntendToTeach(e.target.checked)}
             className="w-5 h-5 accent-[#2E5D4E] cursor-pointer"
            />
-           <label htmlFor="intend" className="text-sm font-bold text-blue-900 cursor-pointer">
+           <label htmlFor="intend" className="text-sm font-bold text-blue-900 cursor-pointer text-left">
              I still intend to teach/volunteer in children's ministry for the current year.
            </label>
         </div>

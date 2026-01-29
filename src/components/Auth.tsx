@@ -8,8 +8,8 @@ interface AuthProps {
 }
 
 const GRADES = [
-  "Pre-School", "Administration", "Grade R-1", "Grade 2-3",
-  "Grade 4-7", "Teens", "Junior Youth", "Senior Youth", "Holiday Bible Club"
+  "Pre-School", "Administration", "Grade R-1", "Grade 2-4",
+  "Grade 5-7", "Teens", "Junior Youth", "Senior Youth", "Holiday Bible Club"
 ];
 
 export const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
