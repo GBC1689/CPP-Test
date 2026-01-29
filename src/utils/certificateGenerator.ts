@@ -22,7 +22,13 @@ const getBase64ImageFromURL = (url: string): Promise<string> => {
   });
 };
 
-export const generateCertificate = async (userName: string, score: number) => {
+/**
+ * Generates the GBC Certificate
+ * @param userName - The full name of the staff member
+ * @param score - The quiz score percentage
+ * @param lastPassDate - The date the test was actually passed (from Firestore)
+ */
+export const generateCertificate = async (userName: string, score: number, lastPassDate: string | Date) => {
   const doc = new jsPDF({
     orientation: 'landscape',
     unit: 'mm',
@@ -31,19 +37,20 @@ export const generateCertificate = async (userName: string, score: number) => {
 
   // --- STYLING CONSTANTS ---
   const GOLD = '#D4AF37';
-  const PRIMARY_GREEN = '#2E5D4E';   // Your Dark Green
-  const FIRE_ENGINE_RED = '#CE2029'; // Your Fire Engine Red
+  const PRIMARY_GREEN = '#2E5D4E';   // Dark Green
+  const FIRE_ENGINE_RED = '#CE2029'; // Fire Engine Red
   const DARK_GREY = '#333333';
   const LIGHT_GREY_BG = '#F9F9F9';
   const A4_WIDTH = 297;
   const A4_HEIGHT = 210;
   const MARGIN = 15;
 
-  // --- DATES ---
-  const today = new Date();
-  const expiryDate = new Date();
-  expiryDate.setFullYear(today.getFullYear() + 2);
-  const dateStr = today.toLocaleDateString('en-GB');
+  // --- DATE LOGIC (1 YEAR VALIDITY FROM PASS DATE) ---
+  const issueDate = new Date(lastPassDate);
+  const expiryDate = new Date(issueDate);
+  expiryDate.setDate(issueDate.getDate() + 365); // Add exactly 365 days
+
+  const dateStr = issueDate.toLocaleDateString('en-GB'); // DD/MM/YYYY
   const expiryStr = expiryDate.toLocaleDateString('en-GB');
 
   // Background
@@ -59,7 +66,7 @@ export const generateCertificate = async (userName: string, score: number) => {
   doc.setLineWidth(0.5);
   doc.rect(MARGIN - 1, MARGIN - 1, A4_WIDTH - (MARGIN - 1) * 2, A4_HEIGHT - (MARGIN - 1) * 2);
 
-  // Logo
+  // Logo Rendering
   const logoSize = 50;
   try {
     const logoBase64 = await getBase64ImageFromURL('/logo.png');
@@ -111,8 +118,9 @@ export const generateCertificate = async (userName: string, score: number) => {
   doc.text(`Valid Until: ${expiryStr}`, A4_WIDTH - MARGIN - 50, footerY);
 
   doc.setTextColor(DARK_GREY);
+  doc.setFont('helvetica', 'italic');
   doc.setFontSize(9);
-  doc.text('This certification is valid for two years.', A4_WIDTH / 2, A4_HEIGHT - MARGIN - 5, { align: 'center' });
+  doc.text('Renewal is required annually on or before the 1st anniversary.', A4_WIDTH / 2, A4_HEIGHT - MARGIN - 5, { align: 'center' });
 
   return doc.output('datauristring');
 };
