@@ -1,89 +1,56 @@
-import emailjs from '@emailjs/browser';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from './firebase';
 import { User, TestResult } from '../types';
-import { configService } from './configService';
-
-// YOUR EMAILJS CREDENTIALS - Replace with your actual IDs
-const SERVICE_ID = 'service_jzlf5sn'; // From Email Services tab
-const PUBLIC_KEY = 'inYasSPsbGxdb0yuJ'; // From Account > API Keys
-const ADMIN_CERT_TEMPLATE_ID = 'template_0lr5jui'; 
-const USER_CONFIRM_TEMPLATE_ID = 'template_0lr5jui'; // Create this for the user confirmation
 
 // Consistent full name helper
 const getFullName = (user: User) => `${user.firstName || ''} ${user.lastName || ''}`.trim();
 
 export const emailService = {
   /**
-   * Requests a printed certificate from the Admin and notifies the User.
+   * Updates the user's document in Firestore to show a "Certificate Requested" status.
+   * This will allow the Admin Dashboard to show a tick/badge.
    */
-  sendCertificateRequest: async (user: User, score: number): Promise<boolean> => {
-    const userName = getFullName(user);
-    
+  sendCertificateRequest: async (user: User): Promise<boolean> => {
     try {
-      const adminEmail = await configService.getAdminNotificationEmail();
+      // Reference to the specific user document in the 'users' collection
+      const userRef = doc(db, 'users', user.id);
       
-      const templateParams = {
-        user_name: userName,
-        user_email: user.email,
-        admin_email: adminEmail,
-        score: `${score}%`,
-      };
+      // We set 'certificateRequested' to true
+      await updateDoc(userRef, {
+        certificateRequested: true,
+        certificateRequestDate: new Date().toISOString(),
+      });
 
-      // 1. Send Request to Admin
-      const adminRes = await emailjs.send(
-        SERVICE_ID,
-        ADMIN_CERT_TEMPLATE_ID,
-        templateParams,
-        PUBLIC_KEY
-      );
-
-      // 2. Send Confirmation to User (if you created the second template)
-      if (USER_CONFIRM_TEMPLATE_ID !== 'YOUR_USER_CONFIRM_TEMPLATE_ID') {
-        await emailjs.send(
-          SERVICE_ID,
-          USER_CONFIRM_TEMPLATE_ID,
-          templateParams,
-          PUBLIC_KEY
-        );
-      }
-
-      return adminRes.status === 200;
+      console.log(`Certificate request logged in Firestore for ${getFullName(user)}`);
+      return true;
     } catch (error) {
-      console.error("Error sending certificate request via EmailJS:", error);
+      console.error("Error updating certificate request in Firestore:", error);
+      // We return false so the UI can show an error message if the database update fails
       return false;
     }
   },
 
   /**
-   * Generic handler for other email types. 
-   * Note: You will need to create templates in EmailJS for these to work.
+   * Helper to clear the request once the admin has processed it.
+   * You can call this from your Admin Dashboard when clicking 'Download'.
    */
-  sendTestResult: async (user: User, result: TestResult): Promise<boolean> => {
-    console.warn("sendTestResult called: Ensure you have an EmailJS template for this.");
-    // To implement: Create a template in EmailJS and use emailjs.send() here
-    return true; 
+  clearCertificateRequest: async (userId: string): Promise<boolean> => {
+    try {
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, {
+        certificateRequested: false
+      });
+      return true;
+    } catch (error) {
+      console.error("Error clearing certificate request:", error);
+      return false;
+    }
   },
 
-  sendAccountDeletedEmail: async (user: User): Promise<boolean> => {
-    console.warn("sendAccountDeletedEmail called: Ensure you have an EmailJS template for this.");
-    return true;
-  },
-
-  sendBulkReminderEmail: async (users: User[]): Promise<boolean> => {
-    // Note: EmailJS is not designed for mass bulk mail. 
-    // For 5-10 users, you can loop through them.
-    console.warn("Bulk reminders need individual EmailJS calls.");
-    return true;
-  },
-
-  sendInvalidLoginAttemptEmail: async (attemptedEmail: string): Promise<boolean> => {
-    console.warn("Invalid login attempt: Create a template for security alerts.");
-    return true;
-  },
-
-  sendCertificateEmail: async (user: User, pdfDataUri: string): Promise<boolean> => {
-    // NOTE: EmailJS supports attachments only on paid plans or via specific configurations.
-    // For now, this will notify the user their cert is ready.
-    console.warn("Certificate Email: Attachments require EmailJS premium or specific setup.");
-    return true;
-  }
+  // Placeholders to keep the app from breaking if these are called elsewhere
+  sendTestResult: async () => true,
+  sendAccountDeletedEmail: async () => true,
+  sendBulkReminderEmail: async () => true,
+  sendInvalidLoginAttemptEmail: async () => true,
+  sendCertificateEmail: async () => true
 };

@@ -21,22 +21,23 @@ export const AdminDashboard: React.FC = () => {
   const [showTeachersReport, setShowTeachersReport] = useState(false);
 
   // --- DATA FETCHING ---
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const allUsers = await authService.getAllUsers();
+      setUsers(allUsers.filter(u => !u.isDeleted));
+      
+      const email = await configService.getAdminNotificationEmail();
+      setAdminEmail(email);
+    } catch (error) {
+      console.error("Dashboard load error:", error);
+      setStatusMessage({ text: 'Failed to load initial data from Firestore.', type: 'error' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        const allUsers = await authService.getAllUsers();
-        setUsers(allUsers.filter(u => !u.isDeleted));
-        
-        const email = await configService.getAdminNotificationEmail();
-        setAdminEmail(email);
-      } catch (error) {
-        console.error("Dashboard load error:", error);
-        setStatusMessage({ text: 'Failed to load initial data from Firestore.', type: 'error' });
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchData();
   }, []);
 
@@ -88,6 +89,13 @@ export const AdminDashboard: React.FC = () => {
       link.click();
       document.body.removeChild(link);
       
+      // NEW: Automatically clear the request status in Firestore
+      if (user.certificateRequested) {
+        await emailService.clearCertificateRequest(user.id);
+        // Update local state to remove the tick immediately
+        setUsers(prev => prev.map(u => u.id === user.id ? { ...u, certificateRequested: false } : u));
+      }
+
       setTimeout(() => setStatusMessage(null), 3000);
     } catch (error) {
       console.error("PDF Generation Error:", error);
@@ -154,7 +162,7 @@ export const AdminDashboard: React.FC = () => {
     setTimeout(() => setStatusMessage(null), 4000);
   };
 
-  if (isLoading) return <div className="text-center p-12">Loading Admin Data...</div>;
+  if (isLoading) return <div className="text-center p-12 text-gray-500">Loading Admin Data...</div>;
 
   return (
     <div className="space-y-8 pb-20">
@@ -165,10 +173,14 @@ export const AdminDashboard: React.FC = () => {
         <h2 className="text-3xl font-bold mb-2">Church Administration Reports</h2>
         <p className="opacity-80 mb-6 text-green-50">Monitoring compliance across all children's ministry staff.</p>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="bg-white p-4 rounded-xl shadow-inner">
             <span className="text-3xl font-black block text-gray-800">{stats.length}</span>
             <span className="text-xs font-bold uppercase tracking-widest text-[#2E5D4E]">Total Staff</span>
+          </div>
+          <div className="bg-white p-4 rounded-xl shadow-inner border-l-4 border-blue-500">
+            <span className="text-3xl font-black block text-blue-600">{stats.filter(s => s.certificateRequested).length}</span>
+            <span className="text-xs font-bold uppercase tracking-widest text-gray-500">New Requests</span>
           </div>
           <div className="bg-white p-4 rounded-xl shadow-inner border-l-4 border-[#2E5D4E]">
             <span className="text-3xl font-black block text-[#2E5D4E]">{stats.filter(s => !s.isExpired).length}</span>
@@ -186,28 +198,6 @@ export const AdminDashboard: React.FC = () => {
           {statusMessage.text}
         </div>
       )}
-
-      {/* System Settings & Maintenance */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-          <h3 className="text-lg font-bold text-gray-700 mb-2">Admin Notification Email</h3>
-          <div className="flex items-center gap-4">
-            <input type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} className="flex-grow px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#2E5D4E]" />
-            <button onClick={handleSaveAdminEmail} disabled={isSavingEmail} className="px-6 py-2 bg-[#2E5D4E] text-white rounded-lg font-bold hover:bg-[#254a3e]">
-              {isSavingEmail ? 'Saving...' : 'Update'}
-            </button>
-          </div>
-        </div>
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-6 flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-bold text-blue-900">Quiz Database</h3>
-            <p className="text-sm text-blue-700">Restore/Sync question pool</p>
-          </div>
-          <button onClick={handleSeedDatabase} disabled={isSeeding} className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700">
-            {isSeeding ? 'Seeding...' : 'Initialize Pool'}
-          </button>
-        </div>
-      </div>
 
       {/* Staff Table */}
       <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
@@ -230,9 +220,9 @@ export const AdminDashboard: React.FC = () => {
             <thead>
               <tr className="bg-white text-left text-[10px] font-bold text-gray-400 uppercase border-b tracking-tighter">
                 <th className="px-6 py-4">Staff Member</th>
-                <th className="px-6 py-4 text-center">Intends to Teach</th>
+                <th className="px-6 py-4 text-center">Req Status</th>
                 <th className="px-6 py-4">Last Success</th>
-                <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4">Cert Status</th>
                 <th className="px-6 py-4 text-center">Admin</th>
                 <th className="px-6 py-4 text-right">Actions</th>
               </tr>
@@ -241,11 +231,18 @@ export const AdminDashboard: React.FC = () => {
               {filteredStats.map(s => (
                 <tr key={s.id} className="hover:bg-gray-50 transition-colors group">
                   <td className="px-6 py-4">
-                    {/* CATCH-ALL: Added 'capitalize' class here for UI display */}
                     <p className="font-bold text-gray-800 capitalize">{getFullName(s)}</p>
                     <p className="text-xs text-gray-400">{s.email}</p>
                   </td>
-                  <td className="px-6 py-4 text-center font-medium text-gray-600">{s.intendToTeach ? 'YES' : 'NO'}</td>
+                  <td className="px-6 py-4 text-center">
+                    {s.certificateRequested ? (
+                      <span className="bg-green-500 text-white px-2 py-1 rounded text-[10px] font-black animate-bounce inline-block">
+                        CERT REQ
+                      </span>
+                    ) : (
+                      <span className="text-gray-300">—</span>
+                    )}
+                  </td>
                   <td className="px-6 py-4 text-sm text-gray-500">{s.lastSuccessDate ? s.lastSuccessDate.toLocaleDateString('en-GB') : 'Never'}</td>
                   <td className="px-6 py-4">
                     <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${s.isExpired ? 'bg-red-100 text-[#CE2029]' : 'bg-green-100 text-[#2E5D4E]'}`}>
@@ -257,8 +254,14 @@ export const AdminDashboard: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 text-right flex justify-end gap-3">
                     {!s.isExpired && (
-                      <button onClick={() => handleDownloadCertificate(s)} title="Download Certificate" className="text-blue-500 hover:text-blue-700 p-2 hover:bg-blue-50 rounded-lg">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                      <button 
+                        onClick={() => handleDownloadCertificate(s)} 
+                        title={s.certificateRequested ? "Generate Requested Certificate" : "Download Certificate"} 
+                        className={`p-2 rounded-lg transition-colors ${s.certificateRequested ? 'bg-green-100 text-green-600 hover:bg-green-200' : 'text-blue-500 hover:text-blue-700 hover:bg-blue-50'}`}
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                        </svg>
                       </button>
                     )}
                     <button onClick={() => handleDeleteUser(s)} title="Delete Account" className="text-gray-400 hover:text-[#CE2029] p-2 hover:bg-red-50 rounded-lg">
