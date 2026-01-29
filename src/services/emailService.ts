@@ -1,4 +1,3 @@
-
 import { collection, addDoc, writeBatch, doc } from 'firebase/firestore';
 import { db } from './firebase';
 import { User, TestResult } from '../types';
@@ -9,6 +8,14 @@ const mailCollection = collection(db, 'mail');
 
 // Consistent full name helper
 const getFullName = (user: User) => `${user.firstName || ''} ${user.lastName || ''}`.trim();
+
+// Helper to get Initial and Surname (e.g., "John Doe" -> "J. Doe")
+const getInitialAndSurname = (user: User) => {
+  const fName = user.firstName || '';
+  const lName = user.lastName || '';
+  if (!fName) return lName;
+  return `${fName.charAt(0).toUpperCase()}. ${lName}`;
+};
 
 export const emailService = {
   /**
@@ -43,6 +50,45 @@ export const emailService = {
       return true;
     } catch (error) {
       console.error("Error triggering test result email:", error);
+      return false;
+    }
+  },
+
+  /**
+   * Requests a printed certificate from the Admin.
+   */
+  sendCertificateRequest: async (user: User, score: number): Promise<boolean> => {
+    const userName = getFullName(user);
+    const displaySignature = getInitialAndSurname(user);
+    
+    try {
+      const adminEmail = await configService.getAdminNotificationEmail();
+      
+      const emailHtml = `
+        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #ccc; border-radius: 10px;">
+          <h2 style="color: #2E5D4E;">GBC - New Certificate Request</h2>
+          <p>A staff member has successfully passed the Child Protection Policy test and is requesting a printed certificate.</p>
+          <hr>
+          <p><strong>Full Name:</strong> ${userName}</p>
+          <p><strong>Signature Format:</strong> ${displaySignature}</p>
+          <p><strong>Passing Score:</strong> ${score}%</p>
+          <br>
+          <p><strong>Action Required:</strong> Please log in to the Admin Dashboard to generate and print the official certificate for this member.</p>
+          <hr>
+          <p>This is an automated request from the GBC Portal.</p>
+        </div>
+      `;
+
+      await addDoc(mailCollection, {
+        to: adminEmail,
+        message: {
+          subject: `Certificate Request: ${userName}`,
+          html: emailHtml,
+        },
+      });
+      return true;
+    } catch (error) {
+      console.error("Error triggering certificate request email:", error);
       return false;
     }
   },
@@ -89,7 +135,7 @@ export const emailService = {
 
     users.forEach(user => {
       const userName = getFullName(user);
-      const docRef = doc(mailCollection); // Create a new doc reference for each email
+      const docRef = doc(mailCollection);
 
       batch.set(docRef, {
         to: user.email,

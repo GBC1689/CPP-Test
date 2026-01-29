@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { User, TestResult } from '../types';
-import { generateCertificate } from '../utils/certificateGenerator';
+import { emailService } from '../services/emailService';
 
 interface DashboardProps {
   user: User;
@@ -8,29 +8,33 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ user, onStartQuiz }) => {
-  const handleCertificateRequest = (attempt: TestResult) => {
+  const [requestStatus, setRequestStatus] = useState<Record<number, 'idle' | 'sending' | 'sent'>>({});
+
+  const handleCertificateRequest = async (attempt: TestResult, index: number) => {
     if (!attempt.passed) {
       alert('Certificates are only available for passed tests.');
       return;
     }
 
+    setRequestStatus(prev => ({ ...prev, [index]: 'sending' }));
+    
     try {
-      const fullName = `${user.firstName} ${user.lastName}`;
-      // The date from the attempt is already a string, so we convert it to a Date object.
-      const successfulDate = new Date(attempt.date);
-      generateCertificate(fullName, attempt.score, successfulDate);
+      const success = await emailService.sendCertificateRequest(user, attempt.score);
+      if (success) {
+        setRequestStatus(prev => ({ ...prev, [index]: 'sent' }));
+      } else {
+        throw new Error("Email failed");
+      }
     } catch (error) {
-      console.error('Failed to generate certificate:', error);
-      alert('There was an error generating your certificate. Please try again later.');
+      console.error('Failed to request certificate:', error);
+      alert('There was an error sending your request. Please contact the church office.');
+      setRequestStatus(prev => ({ ...prev, [index]: 'idle' }));
     }
   };
-  // Safety check: Ensure testAttempts is treated as an array even if it's missing
-  const attempts = user.testAttempts || [];
-  
-  const latestResult = attempts.length > 0 
-    ? attempts[attempts.length - 1] 
-    : null;
 
+  // FIX: Map to 'results' instead of 'testAttempts'
+  const attempts = user.results || [];
+  
   const passedOnce = attempts.some(t => t.passed);
 
   return (
@@ -74,29 +78,45 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onStartQuiz }) => {
                   <th className="pb-4">Date</th>
                   <th className="pb-4">Score</th>
                   <th className="pb-4">Status</th>
-                  <th className="pb-4 text-right">Details</th>
+                  <th className="pb-4 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {[...attempts].reverse().map((attempt, idx) => (
-                  <tr key={idx} className="group">
-                    <td className="py-4 text-gray-600">{new Date(attempt.date).toLocaleDateString()}</td>
-                    <td className="py-4 font-bold text-gray-800">{attempt.score}%</td>
-                    <td className="py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${attempt.passed ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                        {attempt.passed ? 'PASSED' : 'RETRY'}
-                      </span>
-                    </td>
-                    <td className="py-4 text-right">
-                      <button
-                        onClick={() => handleCertificateRequest(attempt)}
-                        className="text-xs text-gray-400 group-hover:text-[#2E5D4E] transition-colors cursor-pointer"
-                      >
-                        Certificate
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {[...attempts].reverse().map((attempt, idx) => {
+                  const actualIndex = attempts.length - 1 - idx; // Track correct index for state
+                  const status = requestStatus[actualIndex] || 'idle';
+                  
+                  return (
+                    <tr key={idx} className="group">
+                      <td className="py-4 text-gray-600">{new Date(attempt.date).toLocaleDateString('en-GB')}</td>
+                      <td className="py-4 font-bold text-gray-800">{attempt.score}%</td>
+                      <td className="py-4">
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${attempt.passed ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                          {attempt.passed ? 'PASSED' : 'RETRY'}
+                        </span>
+                      </td>
+                      <td className="py-4 text-right">
+                        {attempt.passed && (
+                          <button
+                            onClick={() => handleCertificateRequest(attempt, actualIndex)}
+                            disabled={status !== 'idle'}
+                            className={`text-xs font-bold transition-colors cursor-pointer px-3 py-1 rounded-md ${
+                              status === 'sent' 
+                                ? 'text-green-600 bg-green-50' 
+                                : status === 'sending'
+                                ? 'text-gray-400'
+                                : 'text-[#2E5D4E] hover:bg-green-50'
+                            }`}
+                          >
+                            {status === 'idle' && 'Request Certificate'}
+                            {status === 'sending' && 'Sending...'}
+                            {status === 'sent' && '✓ Requested'}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

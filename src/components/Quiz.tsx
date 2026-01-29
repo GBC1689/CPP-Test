@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { generateCertificate } from '../utils/certificateGenerator';
-import { Question, QuestionAttempt, TestResult } from '../types';
+import { Question, QuestionAttempt, TestResult, User } from '../types';
 import { getQuestionsFromFirestore } from '../services/quizService';
+import { emailService } from '../services/emailService';
 
 interface QuizProps {
   onComplete: (result: TestResult) => void;
   onCancel: () => void;
-  userName?: string; // Added to facilitate certificate generation
+  currentUser: User; // Changed from userName to User object to access all details
 }
 
-export const Quiz: React.FC<QuizProps> = ({ onComplete, onCancel, userName = "Staff Member" }) => {
+export const Quiz: React.FC<QuizProps> = ({ onComplete, onCancel, currentUser }) => {
   const [shuffledQuestions, setShuffledQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [currentAttempts, setCurrentAttempts] = useState(0);
@@ -18,7 +18,7 @@ export const Quiz: React.FC<QuizProps> = ({ onComplete, onCancel, userName = "St
   const [attemptsHistory, setAttemptsHistory] = useState<QuestionAttempt[]>([]);
   const [testFinished, setTestFinished] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [requestStatus, setRequestStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
 
   // Initialize questions from Firestore
   useEffect(() => {
@@ -98,24 +98,16 @@ export const Quiz: React.FC<QuizProps> = ({ onComplete, onCancel, userName = "St
     onComplete(result);
   };
 
-  const handleDownloadCertificate = async () => {
+  const handleRequestCertificate = async () => {
     const score = attemptsHistory.filter(a => a.isCorrect).length * 5;
-    setIsGeneratingPdf(true);
+    setRequestStatus('sending');
     try {
-      // FIX: Added the 3rd argument (new Date()) to match the updated generator
-      const dataUri = await generateCertificate(userName, score, new Date());
-      
-      const link = document.createElement('a');
-      link.href = dataUri;
-      link.download = `GBC_Certificate.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      await emailService.sendCertificateRequest(currentUser, score);
+      setRequestStatus('sent');
     } catch (error) {
-      console.error("PDF Download error:", error);
-      alert("Could not generate certificate. Please contact admin.");
-    } finally {
-      setIsGeneratingPdf(false);
+      console.error("Certificate Request error:", error);
+      alert("Failed to send request. Please notify the admin manually.");
+      setRequestStatus('idle');
     }
   };
 
@@ -148,11 +140,17 @@ export const Quiz: React.FC<QuizProps> = ({ onComplete, onCancel, userName = "St
         <div className="flex flex-col gap-4">
           {passed && (
             <button 
-              onClick={handleDownloadCertificate}
-              disabled={isGeneratingPdf}
-              className="w-full bg-[#2E5D4E] text-white py-4 rounded-xl font-bold hover:bg-[#254a3e] transition-all flex items-center justify-center gap-2"
+              onClick={handleRequestCertificate}
+              disabled={requestStatus !== 'idle'}
+              className={`w-full py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-md ${
+                requestStatus === 'sent' 
+                  ? 'bg-gray-400 text-white cursor-default' 
+                  : 'bg-[#2E5D4E] hover:bg-[#254a3e] text-white active:scale-95'
+              }`}
             >
-              {isGeneratingPdf ? 'Generating...' : 'Download Certificate'}
+              {requestStatus === 'idle' && '📩 Request Printed Certificate'}
+              {requestStatus === 'sending' && 'Sending Request...'}
+              {requestStatus === 'sent' && '✅ Request Sent to Admin'}
             </button>
           )}
           <button 

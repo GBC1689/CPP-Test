@@ -9,7 +9,6 @@ import { AdminDashboard } from './components/AdminDashboard.tsx';
 import { Layout } from './components/Layout.tsx';
 import { authService } from './services/authService.ts';
 import { emailService } from './services/emailService.ts';
-import { generateCertificate } from './utils/certificateGenerator.ts';
 import { User, AppState, TestResult } from './types.ts';
 
 const App: React.FC = () => {
@@ -18,6 +17,7 @@ const App: React.FC = () => {
   const [currentResult, setCurrentResult] = useState<TestResult | null>(null);
   const [sendingEmail, setSendingEmail] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [certRequestStatus, setCertRequestStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
 
   // --- SESSION RESTORATION ---
   useEffect(() => {
@@ -60,7 +60,6 @@ const App: React.FC = () => {
   };
 
   const handleAuthSuccess = (authenticatedUser: User) => {
-    // Safety check: Ensure we actually have a user object
     if (authenticatedUser && authenticatedUser.id) {
       setUser(authenticatedUser);
       setAppState('DASHBOARD');
@@ -82,6 +81,7 @@ const App: React.FC = () => {
   const handleQuizComplete = async (result: TestResult) => {
     setCurrentResult(result);
     setAppState('RESULT');
+    setCertRequestStatus('idle'); // Reset status for new result
     
     if (user) {
       try {
@@ -98,6 +98,18 @@ const App: React.FC = () => {
     }
   };
 
+  const handleRequestCertificate = async () => {
+    if (!user || !currentResult) return;
+    setCertRequestStatus('sending');
+    try {
+      await emailService.sendCertificateRequest(user, currentResult.score);
+      setCertRequestStatus('sent');
+    } catch (error) {
+      alert("Failed to send request. Please notify admin.");
+      setCertRequestStatus('idle');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -107,8 +119,6 @@ const App: React.FC = () => {
   }
 
   const renderContent = () => {
-    // --- AUTHENTICATION GATE ---
-    // If we aren't loading and don't have a user, always show Auth unless in AUTH state
     if (appState !== 'AUTH' && !user) {
       return <Auth onAuthSuccess={handleAuthSuccess} />;
     }
@@ -119,16 +129,20 @@ const App: React.FC = () => {
 
       case 'DASHBOARD':
         if (!user) return null;
-        
-        // --- PROFILE GATEKEEPER ---
-        // Only trigger if we definitely have a logged-in user record
         if (!user.firstName || !user.lastName) {
           return <Profile user={user} onUpdate={refreshUser} />;
         }
         return <Dashboard user={user} onStartQuiz={() => setAppState('QUIZ')} />;
 
       case 'QUIZ':
-        return <Quiz onComplete={handleQuizComplete} onCancel={() => setAppState('DASHBOARD')} />;
+        // FIX: Passing full currentUser object
+        return user ? (
+          <Quiz 
+            currentUser={user} 
+            onComplete={handleQuizComplete} 
+            onCancel={() => setAppState('DASHBOARD')} 
+          />
+        ) : null;
 
       case 'PROFILE':
         return user ? <Profile user={user} onUpdate={refreshUser} /> : null;
@@ -173,20 +187,23 @@ const App: React.FC = () => {
               </div>
             </div>
             <div className="pt-6">
-              <div className="flex justify-center items-center gap-4">
-                <button onClick={() => setAppState('DASHBOARD')} className="px-8 py-3 bg-[#2E5D4E] text-white rounded-xl font-bold hover:scale-105 transition-transform">
+              <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
+                <button onClick={() => setAppState('DASHBOARD')} className="w-full sm:w-auto px-8 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-all">
                   Back to Dashboard
                 </button>
-                {currentResult?.passed && user && (
+                {currentResult?.passed && (
                   <button
-                    onClick={() => {
-                      // The date from the result is a string, so we convert it to a Date object.
-                      const successfulDate = new Date(currentResult.date);
-                      generateCertificate(`${user.firstName} ${user.lastName}`, currentResult.score, successfulDate);
-                    }}
-                    className="px-8 py-3 bg-blue-600 text-white rounded-xl font-bold hover:scale-105 transition-transform"
+                    onClick={handleRequestCertificate}
+                    disabled={certRequestStatus !== 'idle'}
+                    className={`w-full sm:w-auto px-8 py-3 rounded-xl font-bold transition-all ${
+                      certRequestStatus === 'sent' 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-[#2E5D4E] text-white hover:scale-105 shadow-lg'
+                    }`}
                   >
-                    Download Certificate
+                    {certRequestStatus === 'idle' && '📩 Request Certificate'}
+                    {certRequestStatus === 'sending' && 'Sending...'}
+                    {certRequestStatus === 'sent' && '✓ Request Sent'}
                   </button>
                 )}
               </div>
