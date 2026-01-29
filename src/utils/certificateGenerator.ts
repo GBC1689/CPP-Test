@@ -35,7 +35,6 @@ const getBase64ImageFromURL = (url: string): Promise<string> => {
 
 /**
  * Helper to capitalize names (e.g., "john doe" -> "John Doe")
- * Used to ensure certificates look professional even if user input was lowercase.
  */
 const formatTitleCase = (str: string) => {
   if (!str) return '';
@@ -73,12 +72,12 @@ export const generateCertificate = async (userName: string, score: number, lastP
   const A4_HEIGHT = 210;
   const MARGIN = 15;
 
-  // --- DATE LOGIC (1 YEAR VALIDITY FROM PASS DATE) ---
+  // --- DATE LOGIC (1 YEAR VALIDITY) ---
   const issueDate = new Date(lastPassDate);
   const expiryDate = new Date(issueDate);
-  expiryDate.setDate(issueDate.getDate() + 365); // Add exactly 365 days
+  expiryDate.setDate(issueDate.getDate() + 365);
 
-  const dateStr = issueDate.toLocaleDateString('en-GB'); // DD/MM/YYYY
+  const dateStr = issueDate.toLocaleDateString('en-GB'); 
   const expiryStr = expiryDate.toLocaleDateString('en-GB');
 
   // Background
@@ -94,27 +93,41 @@ export const generateCertificate = async (userName: string, score: number, lastP
   doc.setLineWidth(0.5);
   doc.rect(MARGIN - 1, MARGIN - 1, A4_WIDTH - (MARGIN - 1) * 2, A4_HEIGHT - (MARGIN - 1) * 2);
 
-  // Logo Rendering
-  const logoSize = 50;
+  // --- LOGO RENDERING (FIXED ASPECT RATIO) ---
+  const targetWidth = 75; // Adjust this if you want the logo bigger or smaller
   try {
     const logoBase64 = await getBase64ImageFromURL('logo.png');
-    doc.addImage(logoBase64, 'PNG', (A4_WIDTH / 2) - (logoSize / 2), 25, logoSize, logoSize);
+    const imgProps = doc.getImageProperties(logoBase64);
+    
+    // Calculate height dynamically based on your 696x287 ratio
+    const ratio = imgProps.width / imgProps.height;
+    const targetHeight = targetWidth / ratio;
+
+    doc.addImage(
+      logoBase64, 
+      'PNG', 
+      (A4_WIDTH / 2) - (targetWidth / 2), 
+      20, // Y position from top
+      targetWidth, 
+      targetHeight
+    );
   } catch (e) {
-    console.error("Certificate logo not found.", e);
+    console.error("Certificate logo error.", e);
     doc.setDrawColor(DARK_GREY);
-    doc.rect((A4_WIDTH / 2) - (logoSize / 2), 25, logoSize, logoSize);
-    doc.text("GBC LOGO", A4_WIDTH / 2, 50, { align: 'center' });
+    doc.rect((A4_WIDTH / 2) - (targetWidth / 2), 20, targetWidth, 20);
+    doc.text("GBC LOGO", A4_WIDTH / 2, 32, { align: 'center' });
   }
 
-  // Text Content
+  // --- TEXT CONTENT ---
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(28);
+  doc.setFontSize(26);
   doc.setTextColor(PRIMARY_GREEN);
-  doc.text('GERMISTON BAPTIST CHURCH', A4_WIDTH / 2, 85, { align: 'center' });
+  // Pushed down to 88 to accommodate the wider logo
+  doc.text('GERMISTON BAPTIST CHURCH', A4_WIDTH / 2, 88, { align: 'center' });
 
   doc.setFontSize(20);
   doc.setTextColor(DARK_GREY);
-  doc.text('Certificate of Achievement', A4_WIDTH / 2, 98, { align: 'center' });
+  doc.text('Certificate of Achievement', A4_WIDTH / 2, 100, { align: 'center' });
 
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(16);
